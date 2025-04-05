@@ -11,7 +11,7 @@ import { Coin } from "../entities/Coin";
 
 export default class Game extends Phaser.Scene {
     private player?: Player;
-    private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+    private cursors?: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
     private TILE_SIZE = 16;
 
     private currentDepth = 0;
@@ -132,8 +132,10 @@ export default class Game extends Phaser.Scene {
         this.nextShopDepthThreshold = 10;
         this.lastReportedDepth = -1;
         this.totalCoinsCollected = 0;
+        this.blockParticleEmitters = new Map();
 
         this.cameras.main.setBackgroundColor(0x87ceeb);
+        this.cameras.main.resetFX();
 
         this.bouldersGroup = this.physics.add.group({
             classType: Boulder,
@@ -223,7 +225,6 @@ export default class Game extends Phaser.Scene {
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [] as string[]);
-        this.totalCoinsCollected += 10;
         this.emitStatsUpdate(true);
 
         this.createBlockParticleEmitter("dirt_tile");
@@ -236,13 +237,7 @@ export default class Game extends Phaser.Scene {
     }
 
     private setupEventListeners() {
-        EventBus.off("close-shop", this.resumeGame, this);
-        EventBus.off("request-shop-reroll", this.handleShopReroll, this);
-        EventBus.off("purchase-item", this.handlePurchaseAttempt, this);
-        EventBus.off("player-dig-attempt", this.handleDigAttempt, this);
-        EventBus.off("create-explosion", this.handleCreateExplosion, this);
-        EventBus.off("block-destroyed", this.handleBlockDestroyed, this);
-        EventBus.off("restart-game", this.handleRestartGame, this);
+        this.removeEventListeners();
 
         EventBus.on("close-shop", this.resumeGame, this);
         EventBus.on("request-shop-reroll", this.handleShopReroll, this);
@@ -251,6 +246,16 @@ export default class Game extends Phaser.Scene {
         EventBus.on("create-explosion", this.handleCreateExplosion, this);
         EventBus.on("block-destroyed", this.handleBlockDestroyed, this);
         EventBus.on("restart-game", this.handleRestartGame, this);
+    }
+
+    private removeEventListeners() {
+        EventBus.off("close-shop", this.resumeGame, this);
+        EventBus.off("request-shop-reroll", this.handleShopReroll, this);
+        EventBus.off("purchase-item", this.handlePurchaseAttempt, this);
+        EventBus.off("player-dig-attempt", this.handleDigAttempt, this);
+        EventBus.off("create-explosion", this.handleCreateExplosion, this);
+        EventBus.off("block-destroyed", this.handleBlockDestroyed, this);
+        EventBus.off("restart-game", this.handleRestartGame, this);
     }
 
     resumeGame() {
@@ -401,8 +406,17 @@ export default class Game extends Phaser.Scene {
         const player = playerGO as Player;
         const boulder = boulderGO as Boulder;
 
-        console.log("Player hit by boulder!");
-        this.handlePlayerDamage(player);
+        if (
+            Math.abs(
+                (boulder.body?.velocity.x || 0) - (player.body?.velocity.x || 0)
+            ) > 1 ||
+            Math.abs(
+                (boulder.body?.velocity.y || 0) - (player.body?.velocity.y || 0)
+            ) > 1
+        ) {
+            console.log("Player hit by boulder!");
+            this.handlePlayerDamage(player);
+        }
     }
 
     handlePlayerDamage(player: Player) {
@@ -686,12 +700,52 @@ export default class Game extends Phaser.Scene {
             coin.body.enable = false;
         }
 
+        // play sound
+        this.sound.play("coin_collect");
+
         console.log(`Collected coin. Total: ${this.registry.get("coins")}`);
     }
 
     private handleRestartGame() {
         console.log("Restarting game from GameOver modal...");
         this.scene.start("Game");
+    }
+
+    shutdown() {
+        console.log("Game scene shutting down...");
+
+        this.blockParticleEmitters.forEach((emitter) => {
+            emitter.destroy();
+        });
+        this.blockParticleEmitters.clear();
+        console.log("Destroyed particle emitters.");
+
+        this.removeEventListeners();
+        console.log("Removed event listeners.");
+
+        if (this.bouldersGroup) {
+            this.bouldersGroup.destroy(true);
+        }
+        if (this.enemiesGroup) {
+            this.enemiesGroup.destroy(true);
+        }
+        if (this.coinsGroup) {
+            this.coinsGroup.destroy(true);
+        }
+        console.log("Destroyed physics groups.");
+
+        if (this.terrainManager) {
+            console.log("Cleaned up TerrainManager (if applicable).");
+        }
+
+        this.cameras.main.stopFollow();
+
+        if (this.player) {
+            this.player.destroy();
+            this.player = undefined;
+        }
+
+        this.cursors = undefined;
     }
 }
 

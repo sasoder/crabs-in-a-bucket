@@ -149,7 +149,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                     "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"
                                 )}
                             >
-                                Keep Digging
+                                Try Again
                             </Button>
                         </AlertDialogFooter>
                     </div>

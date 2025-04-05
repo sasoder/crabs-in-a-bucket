@@ -4,6 +4,7 @@ interface CoinProps {
     size?: "sm" | "md" | "lg";
     cost?: number;
     textShadow?: boolean;
+    muted?: boolean;
 }
 
 const coinTextSize = {
@@ -16,6 +17,7 @@ export default function Coin({
     size = "md",
     cost = 0,
     textShadow = true,
+    muted = false,
 }: CoinProps) {
     return (
         <div className="flex items-center gap-1">
@@ -25,6 +27,7 @@ export default function Coin({
                 style={{
                     imageRendering: "pixelated",
                     filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.5))",
+                    opacity: muted ? 0.5 : 1,
                 }}
                 className={cn(
                     "w-8 h-8",
@@ -32,13 +35,14 @@ export default function Coin({
                     size === "lg" && "w-12 h-12"
                 )}
             />
-            {cost > 0 && (
+            {cost >= 0 && (
                 <div
                     className={cn(coinTextSize[size])}
                     style={{
                         textShadow: textShadow
                             ? "0px 2px 3px rgba(0,0,0,0.5)"
                             : "none",
+                        opacity: muted ? 0.5 : 1,
                     }}
                 >
                     {cost}

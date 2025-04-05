@@ -115,7 +115,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                         />
                     </Button>
                     {showPrice && cost !== undefined && (
-                        <Coin size="sm" cost={cost} />
+                        <Coin size="sm" cost={cost} muted={disabled} />
                     )}
                 </div>
             </TooltipTrigger>

@@ -94,6 +94,9 @@ export default class Preloader extends Phaser.Scene {
         // Load consumable images
         this.load.image("tnt", "assets/consumables/tnt.png");
 
+        // Load sound effects
+        this.load.audio("coin_collect", "assets/audio/coin_collect.wav");
+
         // ... add all other consumable images ...
     }
 
