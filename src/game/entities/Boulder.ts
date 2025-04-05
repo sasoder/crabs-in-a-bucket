@@ -1,13 +1,17 @@
 // src/game/entities/Boulder.ts
 import Phaser from "phaser";
 import { TILE_SIZE } from "../constants";
+import Game from "../scenes/Game";
 
 export class Boulder extends Phaser.Physics.Arcade.Image {
+    protected gameScene: Game;
+
     constructor(scene: Phaser.Scene, x: number, y: number) {
         // Assuming you have a 'boulder' texture loaded
         super(scene, x + TILE_SIZE / 2, y + TILE_SIZE / 2, "boulder"); // Center in tile
         scene.add.existing(this);
         scene.physics.add.existing(this);
+        this.gameScene = scene as Game;
 
         this.setCollideWorldBounds(false); // Let them fall off-screen
         this.setBounce(0.1);
@@ -29,6 +33,14 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             (this.width - radius * 2) / 2, // Center the circle body
             (this.height - radius * 2) / 2
         );
+
+        // Add collision with the row colliders
+        if (this.gameScene.terrainManager) {
+            this.scene.physics.add.collider(
+                this,
+                this.gameScene.terrainManager.getRowColliderGroup()
+            );
+        }
     }
 
     update() {

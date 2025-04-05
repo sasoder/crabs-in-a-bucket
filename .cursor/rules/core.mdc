@@ -12,14 +12,9 @@ A 2D tilemap roguelike platformer where the player digs downwards by jumping, br
 
 *   **Movement:** Standard left/right horizontal movement on surfaces.
 *   **Jumping / Digging:**
-    *   Pressing the jump button initiates an upward leap *and* simultaneously destroys blocks in a defined area directly beneath the player's position *at the start of the jump*.
+    *   Pressing the jump button initiates an upward leap *and* simultaneously destroys blocks in the row directly beneath the player's position *at the start of the jump*.
     *   **Base Dig Area:** 1 block wide x 1 block deep. This can be upgraded via Relics.
     *   Enemies within/on the destroyed block area are instantly killed.
-*   **Enemy Interaction:**
-    *   **Dig Kill:** Enemies caught within the blocks destroyed by the player's jump/dig are killed.
-    *   **Stomp Kill:** If the player lands directly on top of an enemy after a jump, the enemy is killed.
-    *   **Coin Reward:** Killing an enemy by either method grants the player coins.
-    *   Enemies cannot be harmed by simply bumping into them horizontally (this damages the player and kills the enemy and grants no coins).
 *   **Progression:**
     *   The game world scrolls vertically as the player descends.
     *   Depth is measured in "rows" or equivalent units.
@@ -46,18 +41,6 @@ A 2D tilemap roguelike platformer where the player digs downwards by jumping, br
 
 **(A) Relics (Permanent Passive Upgrades for the Run)**
 
-*   **Steel-Toed Boots:**
-    *   Effect: `Dig Depth +1`
-    *   *Description:* Your jump dig destroys blocks one layer deeper than normal. (Stacks additively).
-*   **Impact Tremor:**
-    *   Effect: `Dig Width +1`
-    *   *Description:* Your jump dig destroys blocks two tiles wider than normal (e.g., 1 -> 3 wide, 3 -> 5 wide). Affects area symmetrically. (Stacks additively).
-*   **Excavator's Greed:**
-    *   Effect: `Broken Blocks Drop Coins (Low Chance)`
-    *   *Description:* Each block destroyed by your dig has a small percentage chance to drop a coin.
-*   **Tunnel Rat:**
-    *   Effect: `Can Squeeze Through 1-Tile Gaps`
-    *   *Description:* Allows horizontal movement through narrow 1-tile high passages that are normally impassable.
 *   **Springy Soles:**
     *   Effect: `Jump Height +10%`
     *   *Description:* Increases the maximum height of your jumps. (Stacks additively).

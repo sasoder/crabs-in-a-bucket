@@ -1,61 +1,48 @@
 // src/game/managers/TerrainManager.ts
 import Phaser from "phaser";
-import { BlockType, TILE_SIZE } from "../constants";
+import { TILE_SIZE } from "../constants"; // Keep TILE_SIZE for row height
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
-import { BlockConfig } from "../types/BlockConfig";
-import { EventBus } from "../EventBus"; // Import EventBus
+// import { BlockConfig } from "../types/BlockConfig"; // Not needed
+import { EventBus } from "../EventBus";
 import { Coin } from "../entities/Coin";
+import { GoldEntity } from "../entities/GoldEntity";
+import Game from "../scenes/Game"; // Import Game scene type
 
-// --- Configuration for Block Types (Simplified) ---
-const blockConfigs: Record<BlockType, BlockConfig | null> = {
-    [BlockType.EMPTY]: null,
-    [BlockType.DIRT]: {
-        id: BlockType.DIRT,
-        textureKey: "dirt_tile",
-        isDestructible: true,
-        hardness: 1,
-        dropsCoinChance: 0.02,
-    },
-    [BlockType.STONE]: {
-        id: BlockType.STONE,
-        textureKey: "stone_tile",
-        isDestructible: true,
-        hardness: 3, // Harder than dirt
-        dropsCoinChance: 0.01, // Lower chance than dirt
-    },
-    [BlockType.GOLD]: {
-        id: BlockType.GOLD,
-        textureKey: "gold_tile",
-        isDestructible: true,
-        hardness: 2, // Easier than stone? Maybe drop more coins?
-        dropsCoinChance: 1, // Higher chance for gold
-    },
-};
-// ------------------------------------
+// --- Remove BlockType and blockConfigs ---
 
 export class TerrainManager {
-    private scene: Phaser.Scene;
-    private map: Phaser.Tilemaps.Tilemap;
-    private groundLayer: Phaser.Tilemaps.TilemapLayer;
+    private scene: Game; // Use specific Game type
+    // --- Remove map and groundLayer ---
+    // private map: Phaser.Tilemaps.Tilemap;
+    // private groundLayer: Phaser.Tilemaps.TilemapLayer;
+
     private generatedRowsMaxY: number = 0;
     private bouldersGroup: Phaser.Physics.Arcade.Group;
     private enemiesGroup: Phaser.Physics.Arcade.Group;
+    private goldEntitiesGroup: Phaser.Physics.Arcade.Group;
     private coinsGroup?: Phaser.Physics.Arcade.Group;
-    private particleManager?: any;
-    // Add a map to track block health
-    private blockHealth: Map<string, number> = new Map();
+    private particleManager?: any; // Assuming ParticleManager exists
+
+    // --- NEW: Row Management ---
+    private rowColliderGroup: Phaser.Physics.Arcade.StaticGroup;
+    private rowVisualsGroup: Phaser.GameObjects.Group;
+    private rowColliders: Map<number, Phaser.GameObjects.GameObject> =
+        new Map();
+    private rowVisuals: Map<number, Phaser.GameObjects.GameObject> = new Map();
+    // --------------------------
 
     // Map dimensions (adjust as needed)
-    private mapWidth = 30; // Increased width for more space
-    private mapHeight = 500; // Keep reasonable height for performance
+    private mapWidthTiles = 30; // Width in terms of tiles/columns
+    private mapHeightTiles = 500; // Max height in terms of tiles/rows
+    private mapWidthPixels = this.mapWidthTiles * TILE_SIZE;
+    private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
-    private boulderSpawnChanceBase = 0.01;
-    private enemySpawnChanceBase = 0.01; // Slightly increased
-    private stoneSpawnChanceBase = 0.1; // Chance to replace dirt with stone
-    private goldSpawnChanceBase = 0.02; // Chance to replace dirt/stone with gold
-    private difficultyScaleFactor = 0.0005; // Increases enemy/boulder/rarity with depth
+    private boulderSpawnChanceBase = 0.005;
+    private enemySpawnChanceBase = 0.008;
+    private goldEntitySpawnChanceBase = 0.004;
+    private difficultyScaleFactor = 0.0003;
     // ---------------------------------------
 
     // --- Initial Platform ---
@@ -63,136 +50,83 @@ export class TerrainManager {
     private initialClearRows = 3; // How many empty rows above the platform
     // ------------------------
 
+    private baseEnemySpeed = 30; // Define a base speed
+    private enemySpeedDepthScale = 0.5; // How much speed increases per row depth
+
     constructor(
-        scene: Phaser.Scene,
+        scene: Game, // Use specific Game type
         bouldersGroup: Phaser.Physics.Arcade.Group,
         enemiesGroup: Phaser.Physics.Arcade.Group,
+        goldEntitiesGroup: Phaser.Physics.Arcade.Group,
         coinsGroup?: Phaser.Physics.Arcade.Group,
         particleManager?: any
     ) {
         this.scene = scene;
         this.bouldersGroup = bouldersGroup;
         this.enemiesGroup = enemiesGroup;
+        this.goldEntitiesGroup = goldEntitiesGroup;
         this.coinsGroup = coinsGroup;
         this.particleManager = particleManager;
 
-        // Create the map instance
-        this.map = this.scene.make.tilemap({
-            tileWidth: TILE_SIZE,
-            tileHeight: TILE_SIZE,
-            width: this.mapWidth,
-            height: this.mapHeight,
-        });
+        // --- Initialize new groups ---
+        this.rowColliderGroup = this.scene.physics.add.staticGroup();
+        this.rowVisualsGroup = this.scene.add.group();
+        // -----------------------------
 
-        // --- Add all required tilesets ---
-        // Ensure texture keys match those generated in Game.ts preload
-        const dirtTileset = this.map.addTilesetImage(
-            "dirt_tile",
-            undefined,
-            TILE_SIZE,
-            TILE_SIZE,
-            0,
-            0,
-            BlockType.DIRT
-        );
-        const stoneTileset = this.map.addTilesetImage(
-            "stone_tile",
-            undefined,
-            TILE_SIZE,
-            TILE_SIZE,
-            0,
-            0,
-            BlockType.STONE
-        );
-        const goldTileset = this.map.addTilesetImage(
-            "gold_tile",
-            undefined,
-            TILE_SIZE,
-            TILE_SIZE,
-            0,
-            0,
-            BlockType.GOLD
-        );
-
-        // Log creation results for debugging
-        console.log("Created Dirt Tileset:", dirtTileset);
-        console.log("Created Stone Tileset:", stoneTileset);
-        console.log("Created Gold Tileset:", goldTileset);
-
-        const tilesets = [dirtTileset, stoneTileset, goldTileset].filter(
-            (ts) => ts !== null
-        ) as Phaser.Tilemaps.Tileset[];
-
-        if (tilesets.length < 3) {
-            // Check if all 3 were created
-            console.error(
-                `Failed to create one or more tilesets in TerrainManager. Check texture keys: 'dirt_tile', 'stone_tile', 'gold_tile'. Created:`,
-                tilesets.map((ts) => ts.name)
-            );
-            // Optionally throw an error or handle differently
-            throw new Error("Failed to create all required tilesets");
-        }
-
-        // --- Create layer with all tilesets ---
-        this.groundLayer = this.map.createBlankLayer(
-            "Ground",
-            tilesets, // Pass the array of valid tilesets
-            0,
-            0
-        )!;
-
-        if (!this.groundLayer) {
-            console.error("Failed to create ground layer in TerrainManager");
-            throw new Error("Failed to create ground layer");
-        }
+        // --- Remove tilemap and layer creation ---
 
         // Set initial generation point (below clear rows)
         this.generatedRowsMaxY = this.initialClearRows * TILE_SIZE;
+
+        console.log("TerrainManager initialized for row-based system.");
     }
 
-    // Helper method to generate unique tile key
-    private getTileKey(tileX: number, tileY: number): string {
-        return `${tileX},${tileY}`;
+    // --- NEW: Public getters for dimensions ---
+    public getMapWidthPixels(): number {
+        return this.mapWidthPixels;
     }
 
-    public getGroundLayer(): Phaser.Tilemaps.TilemapLayer {
-        return this.groundLayer;
+    public getMapHeightPixels(): number {
+        return this.mapHeightPixels;
     }
+    // --- END NEW ---
 
-    public getMap(): Phaser.Tilemaps.Tilemap {
-        return this.map;
+    // --- NEW: Return the collider group ---
+    public getRowColliderGroup(): Phaser.Physics.Arcade.StaticGroup {
+        return this.rowColliderGroup;
     }
+    // --- REMOVED getGroundLayer ---
+    // --- REMOVED getMap ---
 
     public getInitialSpawnPoint(): { x: number; y: number } {
+        // Spawn player slightly above the first platform row
         const spawnYPx =
             (this.initialPlatformRows - 1) * TILE_SIZE + TILE_SIZE / 2;
         return {
-            x: this.map.widthInPixels / 2,
+            x: this.mapWidthPixels / 2,
             y: spawnYPx,
         };
     }
 
     public generateInitialChunk(): void {
-        // Generate the initial solid platform first
+        // Generate the initial solid dirt platform first
         console.log(
             `Generating initial platform at row Y=${this.initialPlatformRows}`
         );
-        const platformTileY = this.initialPlatformRows;
-        for (let tileX = 0; tileX < this.mapWidth; tileX++) {
-            this.placeBlock(tileX, platformTileY, BlockType.DIRT); // Solid dirt platform
-        }
+        const platformWorldY = this.initialPlatformRows * TILE_SIZE;
+        this.generateRow(platformWorldY, true); // Force generate platform row
 
         // Generate some rows below the platform to start
-        const initialWorldDepth = 20; // How many rows to generate initially below platform
+        const initialWorldDepthRows = 20;
         const startY = (this.initialPlatformRows + 1) * TILE_SIZE;
-        const endY = startY + initialWorldDepth * TILE_SIZE;
+        const endY = startY + initialWorldDepthRows * TILE_SIZE;
 
         console.log(`Generating initial chunk from Y=${startY} to Y=${endY}`);
         for (let y = startY; y < endY; y += TILE_SIZE) {
             this.generateRow(y);
         }
         this.generatedRowsMaxY = endY;
-        this.updateCollision();
+        // --- REMOVED updateCollision call --- Collision is handled per-sprite
     }
 
     public update(cameraBottomY: number): void {
@@ -202,162 +136,60 @@ export class TerrainManager {
             const startY = this.generatedRowsMaxY;
             const endY = generationThreshold;
             for (let y = startY; y < endY; y += TILE_SIZE) {
-                this.generateRow(y);
+                // Only generate rows below the initial platform naturally
+                if (y >= (this.initialPlatformRows + 1) * TILE_SIZE) {
+                    this.generateRow(y);
+                }
             }
             this.generatedRowsMaxY = endY;
-            this.updateCollision();
         }
     }
 
-    public digBlockAt(
-        worldX: number,
-        worldY: number
-    ): { textureKey: string | null; blockType: BlockType | null } {
-        const tileX = this.groundLayer.worldToTileX(worldX);
-        const tileY = this.groundLayer.worldToTileY(worldY);
-        let result: { textureKey: string | null; blockType: BlockType | null } =
-            { textureKey: null, blockType: null };
+    public clearCurrentRow(triggerWorldY: number): boolean {
+        // Calculate which row the player is currently on
+        const playerRowY = Math.floor(triggerWorldY / TILE_SIZE);
 
-        if (tileX === null || tileY === null) return result;
+        // Get the current row the player is standing on (not the one below)
+        const targetRowWorldY = playerRowY * TILE_SIZE;
+        const targetTileY = playerRowY; // Current row index, not the one below
 
-        const tile = this.groundLayer.getTileAt(tileX, tileY);
-        const blockConfig = this.getBlockConfigFromTile(tile);
+        console.log(
+            `Attempting to clear row at tileY=${targetTileY} (WorldY ~${targetRowWorldY})`
+        );
 
-        if (tile && blockConfig?.isDestructible) {
-            const blockType = blockConfig.id;
-            const textureKey = blockConfig.textureKey ?? null;
-            const baseCoinChance = blockConfig.dropsCoinChance ?? 0;
-            const tileKey = this.getTileKey(tileX, tileY);
-            const hardness = blockConfig.hardness ?? 1;
+        const collider = this.rowColliders.get(targetTileY);
+        const visual = this.rowVisuals.get(targetTileY);
 
-            // Initialize health if not already tracked
-            if (!this.blockHealth.has(tileKey)) {
-                this.blockHealth.set(tileKey, hardness);
+        if (collider) {
+            console.log(`Clearing collider for row ${targetTileY}`);
+            this.rowColliderGroup.remove(collider, true, true); // Remove from group, destroy GO, destroy body
+            this.rowColliders.delete(targetTileY);
+
+            if (visual) {
+                console.log(`Clearing visual for row ${targetTileY}`);
+                this.rowVisualsGroup.remove(visual, true); // Remove from group, destroy GO
+                this.rowVisuals.delete(targetTileY);
             }
 
-            // Get current health and reduce by 1
-            let currentHealth = this.blockHealth.get(tileKey) || 0;
-            currentHealth--;
-
-            // Update health or destroy if depleted
-            if (currentHealth <= 0) {
-                // Block is fully destroyed
-                this.groundLayer.removeTileAt(tileX, tileY);
-                this.blockHealth.delete(tileKey);
-                console.log(
-                    `Fully destroyed block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}`
-                );
-
-                // Handle block destruction effects
-                this.handleBlockDestroyed(
-                    tile.pixelX,
-                    tile.pixelY,
-                    blockType,
-                    baseCoinChance,
-                    textureKey
-                );
-            } else {
-                // Block is damaged but not destroyed
-                this.blockHealth.set(tileKey, currentHealth);
-                console.log(
-                    `Damaged block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}, health: ${currentHealth}/${hardness}`
-                );
-
-                // Visual feedback for damage
-                this.showBlockDamageEffect(tile, currentHealth, hardness);
+            // Trigger particles across the cleared row
+            if (this.particleManager) {
+                const particleY = targetRowWorldY + TILE_SIZE / 2;
+                for (let i = 0; i < this.mapWidthTiles; i++) {
+                    this.particleManager.triggerParticles(
+                        "dirt_tile", // Use dirt texture key for particles for now
+                        i * TILE_SIZE + TILE_SIZE / 2,
+                        particleY,
+                        { count: 3 } // Adjust count as needed
+                    );
+                }
             }
 
-            result = { textureKey: textureKey, blockType: blockType };
+            // Optional: Emit an event that a row was cleared
+            EventBus.emit("dirt-row-cleared", { tileY: targetTileY });
+            return true; // Row cleared
         } else {
-            console.log(
-                `Failed to dig block at [${tileX}, ${tileY}] (Tile: ${tile?.index}, Config: ${blockConfig?.id}, Destructible: ${blockConfig?.isDestructible})`
-            );
-            result.blockType = blockConfig?.id ?? null; // Still return block type if known
+            return false; // No row to clear
         }
-
-        return result; // Return texture key and block type
-    }
-
-    private showBlockDamageEffect(
-        tile: Phaser.Tilemaps.Tile,
-        currentHealth: number,
-        maxHealth: number
-    ) {
-        // Calculate damage percentage
-        const damagePercent = 1 - currentHealth / maxHealth;
-
-        // Apply visual effect based on damage level
-        // Here we're just changing the alpha, but you could use a texture or tint
-        if (damagePercent <= 0.33) {
-            tile.setAlpha(0.9); // Slightly damaged
-        } else if (damagePercent <= 0.66) {
-            tile.setAlpha(0.75); // Medium damage
-        } else {
-            tile.setAlpha(0.5); // Heavily damaged
-        }
-
-        // Optional: apply a crack overlay or tint
-        tile.tint = 0xcccccc; // Slight gray tint
-
-        // Create small damage particles
-        if (this.particleManager) {
-            const config = this.getBlockConfigFromTile(tile);
-            if (config?.textureKey) {
-                // Use fewer particles for damage effect
-                this.particleManager.triggerParticles(
-                    config.textureKey,
-                    tile.pixelX,
-                    tile.pixelY,
-                    { count: 3 }
-                );
-                console.log(
-                    `Triggered damage particles for ${config.textureKey} at (${tile.pixelX}, ${tile.pixelY})`
-                );
-            }
-        }
-    }
-
-    public handleBlockDestroyed(
-        worldX: number,
-        worldY: number,
-        blockType: BlockType,
-        baseCoinChance: number,
-        textureKey: string | null
-    ) {
-        // Show particles if particle manager exists
-        if (textureKey && this.particleManager) {
-            // Use stronger particle effect for complete destruction
-            this.particleManager.triggerParticles(textureKey, worldX, worldY, {
-                count: 30,
-            });
-            console.log(
-                `Triggered destruction particles for ${textureKey} at (${worldX}, ${worldY})`
-            );
-        }
-
-        // Handle coin spawning
-        let finalCoinChance = baseCoinChance;
-        const currentRelics = this.scene.registry.get("relics") as string[];
-        if (currentRelics.includes("excavators-greed")) {
-            finalCoinChance += 0.05;
-        }
-
-        if (finalCoinChance > 0 && Math.random() < finalCoinChance) {
-            this.spawnCoin(worldX, worldY);
-        }
-
-        if (blockType === BlockType.GOLD) {
-            this.spawnCoin(worldX, worldY, 3);
-        }
-
-        // Emit event with relevant data for other systems to react to
-        EventBus.emit("block-destroyed", {
-            worldX: worldX,
-            worldY: worldY,
-            blockType: blockType,
-            baseCoinChance: baseCoinChance,
-            textureKey: textureKey,
-        });
     }
 
     private spawnCoin(worldX: number, worldY: number, count: number = 1) {
@@ -365,195 +197,278 @@ export class TerrainManager {
             console.warn("Cannot spawn coin: coins group not initialized");
             return;
         }
-
         Coin.spawn(this.scene, this.coinsGroup, worldX, worldY, count);
     }
-
-    public getBlockConfigFromTile(
-        tile: Phaser.Tilemaps.Tile | null
-    ): BlockConfig | null {
-        if (!tile || tile.index === -1) return null;
-        // Find the BlockType enum value matching the tile index
-        // Tileset GIDs ensure tile.index directly maps to BlockType enum value
-        const blockType = tile.index as BlockType; // Direct cast should be safe now
-        return blockConfigs[blockType] ?? null; // Use the direct blockType value
+    public hasRowColliderAt(tileY: number): boolean {
+        return this.rowColliders.has(tileY);
     }
-
-    private placeBlock(
-        tileX: number,
-        tileY: number,
-        blockType: BlockType
-    ): Phaser.Tilemaps.Tile | null {
-        // Ensure tileX and tileY are valid before proceeding
+    /**
+     * Generates a single row's collider and visuals.
+     * @param worldY The world Y coordinate of the top of the row to generate.
+     * @param forceGenerate Skip checks, used for initial platform.
+     */
+    private generateRow(worldY: number, forceGenerate = false): void {
+        const tileY = Math.floor(worldY / TILE_SIZE);
         if (
-            tileX < 0 ||
-            tileX >= this.mapWidth ||
             tileY < 0 ||
-            tileY >= this.mapHeight
+            tileY >= this.mapHeightTiles ||
+            this.rowColliders.has(tileY)
         ) {
-            console.warn(
-                `placeBlock called with invalid coordinates: [${tileX}, ${tileY}]`
-            );
-            return null;
+            return; // Out of bounds or already generated
         }
 
-        const config = blockConfigs[blockType]; // Get config
-
-        if (!config) {
-            // Handle EMPTY case explicitly
-            if (blockType === BlockType.EMPTY) {
-                // Ensure tile is actually removed if it exists
-                this.groundLayer.removeTileAt(tileX, tileY);
-                // Clear any health tracking for this tile
-                this.blockHealth.delete(this.getTileKey(tileX, tileY));
-                return null; // Indicate no tile was placed
-            } else {
-                console.warn(
-                    `Config lookup failed for non-EMPTY type ${BlockType[blockType]}. Handling as EMPTY.`
-                );
-                this.groundLayer.removeTileAt(tileX, tileY);
-                this.blockHealth.delete(this.getTileKey(tileX, tileY));
-                return null;
-            }
+        // Skip generation above initial platform unless forced
+        if (!forceGenerate && tileY <= this.initialPlatformRows) {
+            return;
         }
 
-        // Log before putting tile
-        // console.log(`Attempting placeBlock [${tileX}, ${tileY}], type: ${BlockType[blockType]} (ID: ${config.id})`);
+        // 1. Create Row Collider (Invisible Static Sprite)
+        const colliderHeight = TILE_SIZE * 0.1;
 
-        let tile: Phaser.Tilemaps.Tile | null = null;
-        try {
-            // Use config.id which corresponds to the BlockType enum value / tileset GID
-            tile = this.groundLayer.putTileAt(config.id, tileX, tileY);
+        // Create a proper-sized rectangle for the collider
+        const fullWidth = this.mapWidthPixels;
 
-            // Initialize block health based on hardness
-            if (tile && config.hardness) {
-                this.blockHealth.set(
-                    this.getTileKey(tileX, tileY),
-                    config.hardness
-                );
-            }
-        } catch (error) {
-            console.error(
-                `!!! ERROR during putTileAt [${tileX}, ${tileY}] with ID ${config.id} !!!`
-            );
-            console.error("Layer state:", this.groundLayer);
-            console.error("Error object:", error);
-            // Decide if you want to re-throw or handle gracefully
-            // throw error;
-            return null; // Return null on error
-        }
+        // We'll create this as a rectangle physics body that spans the entire width
+        const colliderSprite = this.scene.physics.add.staticImage(
+            0, // Left X
+            worldY + TILE_SIZE - colliderHeight * 5, // Position exactly at the bottom of the row
+            "dirt_tile" // Need a texture key but we'll make it invisible
+        );
 
-        // console.log("Result of putTileAt:", tile ? `Index ${tile.index}` : 'null');
-        if (!tile) {
-            console.warn(
-                `putTileAt returned null for config.id ${config.id} at [${tileX}, ${tileY}]`
-            );
-        }
-        return tile;
-    }
+        // Now set the actual size of the physics body
+        colliderSprite.displayWidth = fullWidth; // Make the sprite visually wide (though invisible)
+        colliderSprite.displayHeight = colliderHeight; // And the right height
 
-    private generateRow(worldY: number): void {
-        const tileY = this.groundLayer.worldToTileY(worldY);
-        if (tileY === null || tileY < 0 || tileY >= this.mapHeight) return;
+        // Set physics body to match
+        colliderSprite.body.setSize(fullWidth, colliderHeight);
+        colliderSprite.body.offset.x = fullWidth / 2;
+        colliderSprite.body.offset.y = 0; // No vertical offset needed
 
-        const depthFactor = Math.max(0, worldY) * this.difficultyScaleFactor;
+        // Set debug properties - useful for testing
+        colliderSprite.body.debugBodyColor = 0xff0000;
+
+        // Hide the sprite, we just want the physics body
+        colliderSprite.setVisible(false);
+
+        this.rowColliderGroup.add(colliderSprite);
+        this.rowColliders.set(tileY, colliderSprite);
+
+        // 2. Create Row Visual (e.g., Brown Rectangle)
+        // Use a TileSprite for seamless texture if available and desired
+        const visual = this.scene.add.tileSprite(
+            this.mapWidthPixels / 2, // Center X
+            worldY + TILE_SIZE / 2, // Center Y
+            this.mapWidthPixels, // Full width
+            TILE_SIZE, // Full height
+            "dirt_tile" // Use the dirt texture
+        );
+        // Fallback to rectangle if texture fails?
+        // const visual = this.scene.add.rectangle(
+        //     this.mapWidthPixels / 2, // Center X
+        //     worldY + TILE_SIZE / 2,    // Center Y
+        //     this.mapWidthPixels,    // Full width
+        //     TILE_SIZE,              // Full height
+        //     0x8B4513                // Brown color for dirt
+        // );
+        this.rowVisualsGroup.add(visual);
+        this.rowVisuals.set(tileY, visual);
+
+        // 3. Spawn Entities *ABOVE* the newly generated row's surface
+        const spawnWorldY = worldY - TILE_SIZE / 2;
+        if (tileY <= this.initialPlatformRows) return;
+
+        const depthInRows = tileY - (this.initialPlatformRows + 1); // Rows below platform
+        const depthFactor =
+            Math.max(0, depthInRows) * this.difficultyScaleFactor;
+
         const currentBoulderChance = this.boulderSpawnChanceBase + depthFactor;
         const currentEnemyChance = this.enemySpawnChanceBase + depthFactor;
-        // Adjust stone/gold chance based on depth too
-        const currentStoneChance = this.stoneSpawnChanceBase + depthFactor * 2; // Stone becomes more common faster
-        const currentGoldChance = this.goldSpawnChanceBase + depthFactor * 0.5; // Gold rarity increases slower
+        const currentGoldChance =
+            this.goldEntitySpawnChanceBase + depthFactor * 0.8;
 
-        for (let tileX = 0; tileX < this.mapWidth; tileX++) {
-            const worldX = this.groundLayer.tileToWorldX(tileX);
-            let blockToPlace: BlockType = BlockType.EMPTY; // Default to empty
+        // Calculate current enemy speed based on depth
+        const currentEnemySpeed = Math.min(
+            100, // Max speed cap
+            this.baseEnemySpeed + depthInRows * this.enemySpeedDepthScale
+        );
 
-            // Determine base block type (Dirt or Empty)
-            // Basic terrain pattern - higher chance of blocks deeper down
-            const baseFillChance = 0.6 + Math.min(0.35, depthFactor * 5); // Increase density with depth up to 95%
-            if (Math.random() < baseFillChance) {
-                // Start with DIRT, then potentially upgrade
-                blockToPlace = BlockType.DIRT;
+        for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
+            const spawnWorldX = tileX * TILE_SIZE + TILE_SIZE / 2;
 
-                // Chance to upgrade Dirt -> Stone
-                if (Math.random() < currentStoneChance) {
-                    blockToPlace = BlockType.STONE;
-                }
-
-                // Chance to upgrade (Dirt or Stone) -> Gold
-                // Check *after* stone, so gold can replace stone too
-                if (Math.random() < currentGoldChance) {
-                    blockToPlace = BlockType.GOLD;
-                }
-            }
-
-            // Check for Boulder spawn (overrides block placement)
-            let isBoulderSpot = false;
-            if (
-                blockToPlace !== BlockType.EMPTY &&
-                Math.random() < currentBoulderChance
-            ) {
+            if (Math.random() < currentBoulderChance) {
                 const boulder = new Boulder(
                     this.scene,
-                    worldX! + TILE_SIZE / 2,
-                    worldY + TILE_SIZE / 2 // Place boulder centered in the tile's Y
+                    spawnWorldX,
+                    spawnWorldY
                 );
                 this.bouldersGroup.add(boulder);
-                blockToPlace = BlockType.EMPTY; // Clear the tile where the boulder will be
-                isBoulderSpot = true;
-            }
-
-            // Place the determined block (or clear if EMPTY/Boulder)
-            // This uses the refined placeBlock which handles EMPTY correctly
-            this.placeBlock(tileX, tileY, blockToPlace);
-
-            // Check for Enemy spawn (only if spot is truly EMPTY and not a boulder spot)
-            if (
-                blockToPlace === BlockType.EMPTY &&
-                !isBoulderSpot &&
-                Math.random() < currentEnemyChance
-            ) {
-                const tileBelow = this.groundLayer.getTileAt(tileX, tileY + 1);
-                const configBelow = this.getBlockConfigFromTile(tileBelow);
-
-                // Spawn if block below is solid (any type, configBelow will be null for EMPTY)
-                if (configBelow) {
-                    // Double-check current spot is actually empty on the map before spawning
-                    const tileAtSpawn = this.groundLayer.getTileAt(
-                        tileX,
-                        tileY
+            } else if (Math.random() < currentGoldChance) {
+                if (this.coinsGroup) {
+                    Coin.spawn(
+                        this.scene,
+                        this.coinsGroup,
+                        spawnWorldX,
+                        spawnWorldY,
+                        1
                     );
-                    // Check if tile is null (doesn't exist) or index is -1 (explicitly empty)
-                    if (!tileAtSpawn || tileAtSpawn.index === -1) {
-                        const enemy = new Enemy(
-                            this.scene,
-                            worldX! + TILE_SIZE / 2,
-                            worldY + TILE_SIZE / 2 // Center enemy Y too
-                        );
-                        this.enemiesGroup.add(enemy);
-                        // console.log(`Spawned enemy at ${tileX}, ${tileY}`);
-                    }
                 }
+            } else if (Math.random() < currentEnemyChance) {
+                const enemy = new Enemy(this.scene, spawnWorldX, spawnWorldY);
+                enemy.setSpeed(currentEnemySpeed);
+                this.enemiesGroup.add(enemy);
             }
         }
     }
+    // --- END REVISED ---
 
-    private updateCollision(): void {
-        // Set collision for DIRT, STONE, GOLD. Exclude EMPTY (-1 and potentially 0).
-        // BlockType enum: EMPTY=0, DIRT=1, STONE=2, GOLD=3
-        // Exclude -1 (no tile) and 0 (EMPTY tile type)
-        this.groundLayer.setCollisionByExclusion([-1, BlockType.EMPTY]);
-        // Alternatively, be explicit about colliding tiles:
-        // this.groundLayer.setCollision([BlockType.DIRT, BlockType.STONE, BlockType.GOLD]);
-        console.log("Updated ground layer collision (Dirt, Stone, Gold).");
-    }
+    // --- REMOVED updateCollision ---
 
+    // --- REVISED handleCreateExplosion --- Works on rows now
     public handleCreateExplosion(data: {
         worldX: number;
         worldY: number;
         radius: number;
     }) {
-        console.warn("Explosion handling not yet implemented.", data);
-        // Implementation for causing an explosion that destroys multiple blocks in an area
+        console.log(
+            "Handling explosion at:",
+            data.worldX,
+            data.worldY,
+            "Radius:",
+            data.radius
+        );
+        const radiusSq = data.radius * data.radius;
+        const centerTileX = Math.floor(data.worldX / TILE_SIZE);
+        const centerTileY = Math.floor(data.worldY / TILE_SIZE);
+        const tileRadius = Math.ceil(data.radius / TILE_SIZE);
+
+        // Clear rows within the blast radius
+        for (let dy = -tileRadius; dy <= tileRadius; dy++) {
+            const targetTileY = centerTileY + dy;
+            const rowWorldY = targetTileY * TILE_SIZE;
+
+            // Check vertical distance roughly
+            const yDist = data.worldY - (rowWorldY + TILE_SIZE / 2);
+            if (yDist * yDist > radiusSq) continue; // Skip row if too far vertically
+
+            // Attempt to clear the entire row if any part is within radius (simplification)
+            // A more precise check could iterate columns, but clearing full row is simpler
+            // Check horizontal distance of row center to explosion center
+            const xDist = data.worldX - this.mapWidthPixels / 2;
+            const checkRadiusSq =
+                radiusSq +
+                (this.mapWidthPixels / 2) * (this.mapWidthPixels / 2); // Allow hitting edge
+            if (xDist * xDist + yDist * yDist <= checkRadiusSq) {
+                this.clearCurrentRow(rowWorldY - TILE_SIZE / 2); // Pass Y above the target row
+            }
+        }
+
+        // Damage/Destroy Entities in blast radius (remains similar)
+        const explosionWorldX = data.worldX;
+        const explosionWorldY = data.worldY;
+
+        // Damage Enemies
+        this.enemiesGroup?.getChildren().forEach((enemyGO) => {
+            const enemy = enemyGO as Enemy;
+            if (!enemy.active) return;
+            const distSq = Phaser.Math.Distance.Squared(
+                explosionWorldX,
+                explosionWorldY,
+                enemy.x,
+                enemy.y
+            );
+            if (distSq <= radiusSq) {
+                enemy.takeDamage(999); // Instant kill in blast
+            }
+        });
+        // Damage Boulders
+        this.bouldersGroup?.getChildren().forEach((boulderGO) => {
+            const boulder = boulderGO as Boulder;
+            if (!boulder.active) return;
+            const distSq = Phaser.Math.Distance.Squared(
+                explosionWorldX,
+                explosionWorldY,
+                boulder.x,
+                boulder.y
+            );
+            if (distSq <= radiusSq) {
+                boulder.destroy();
+            }
+        });
+        // Damage Gold Entities
+        this.goldEntitiesGroup?.getChildren().forEach((goldGO) => {
+            const gold = goldGO as GoldEntity;
+            if (!gold.active) return;
+            const distSq = Phaser.Math.Distance.Squared(
+                explosionWorldX,
+                explosionWorldY,
+                gold.x,
+                gold.y
+            );
+            if (distSq <= radiusSq) {
+                // Maybe drop coins instead of just destroying?
+                this.spawnCoin(gold.x, gold.y, 5); // Example: drop 5 coins
+                gold.destroy();
+            }
+        });
+    }
+    // --- END REVISED ---
+
+    // Optional: Add cleanup method
+    public destroy() {
+        this.rowColliders.clear();
+        this.rowVisuals.clear();
+        this.rowColliderGroup.destroy(true); // Destroy children
+        this.rowVisualsGroup.destroy(true); // Destroy children
+        console.log("TerrainManager destroyed.");
+    }
+
+    /**
+     * Check if there's a solid row beneath an entity at the specified position.
+     * Entities can use this to determine if they should fall.
+     * @param worldX X position in world coordinates
+     * @param worldY Y position in world coordinates
+     * @returns true if there's a solid row directly below the position
+     */
+    public hasGroundBelow(worldX: number, worldY: number): boolean {
+        // Calculate the row directly below the entity
+        const entityRowY = Math.floor(worldY / TILE_SIZE);
+        const rowBelowY = entityRowY + 1;
+
+        // Check if that row has a collider
+        return this.rowColliders.has(rowBelowY);
+    }
+
+    /**
+     * Check if an entity is at or near a row boundary and should be supported.
+     * Use this for precise checking when entities are moving vertically.
+     * @param worldY Y position in world coordinates
+     * @returns true if the entity is at a position where it should be supported by a row
+     */
+    public isAtRowBoundary(worldY: number): boolean {
+        // Get the position within the current tile
+        const tileY = Math.floor(worldY / TILE_SIZE);
+        const posWithinTile = worldY - tileY * TILE_SIZE;
+
+        // If we're within the bottom boundary region of the tile (80-100% of tile height)
+        // Consider this the "ground support zone"
+        const supportZoneStart = TILE_SIZE * 0.8; // 80% of the way down the tile
+        return posWithinTile >= supportZoneStart && posWithinTile <= TILE_SIZE;
+    }
+
+    /**
+     * Gets the Y coordinate where an entity should be positioned to stand on a row.
+     * This helps entities "snap" to the surface of a row when walking on it.
+     *
+     * @param rowY The row index (not world coordinate)
+     * @param entityHeight The height of the entity in pixels
+     * @returns The world Y coordinate where the entity's bottom should be positioned
+     */
+    public getRowSurfaceY(rowY: number, entityHeight: number): number {
+        // Row world Y is the top of the row
+        const rowTopY = rowY * TILE_SIZE;
+
+        // Return the position for the entity's bottom to be exactly at the row's top
+        return rowTopY - entityHeight / 2;
     }
 }
 

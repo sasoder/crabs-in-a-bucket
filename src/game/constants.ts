@@ -7,13 +7,12 @@ export const DEPTH_INCREMENT = TILE_SIZE; // How much depth increases per row
 export enum BlockType {
     EMPTY = 0,
     DIRT = 1,
-    GOLD = 2,
-    STONE = 3,
 }
 
 export enum EntityType {
     PLAYER,
     BOULDER,
+    GOLD_ENTITY,
     ENEMY_BASIC, // Placeholder for a simple enemy
 }
 

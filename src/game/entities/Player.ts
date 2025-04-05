@@ -4,6 +4,10 @@ import { TILE_SIZE } from "../constants";
 import { EventBus } from "../EventBus"; // Import EventBus
 import { Boulder } from "./Boulder"; // Import Boulder type
 import { Enemy } from "./Enemy"; // Import Enemy type
+// --- Import Game scene type for type hinting ---
+import Game from "../scenes/Game";
+// --- Import new entity types ---
+import { GoldEntity } from "./GoldEntity";
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private moveSpeed = 80; // Adjust as needed
@@ -15,11 +19,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private invulnerabilityDuration = 500; // ms
     private invulnerabilityTimer?: Phaser.Time.TimerEvent;
 
-    private readonly VELOCITY_DAMAGE_THRESHOLD_X = 50;
     private readonly VELOCITY_DAMAGE_THRESHOLD_Y = 50;
+
+    // Scene reference with correct type
+    private gameScene: Game;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, "player"); // Assuming 'player' spritesheet is loaded
+        this.gameScene = scene as Game; // Cast scene to Game type
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
@@ -53,15 +60,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Play jump animation if available
         // this.anims.play('jump', true);
 
-        // 2. Trigger Dig Event (coordinates directly below player center)
-        const digWorldX = this.x;
-        // Adjust Y slightly below the player's bottom edge
-        const digWorldY = this.body!.bottom + TILE_SIZE / 2; // Use body bottom
-        EventBus.emit("player-dig-attempt", {
-            worldX: digWorldX,
-            worldY: digWorldY,
-        });
-        console.log(`Dig attempt emitted at ${digWorldX}, ${digWorldY}`);
+        // 2. Directly attempt row clear via TerrainManager
+        const checkWorldX = this.x;
+        // Check slightly below the player's bottom center
+        const checkWorldY = this.body!.bottom + 1; // Check just below feet
+
+        // Access terrainManager through the typed scene reference
+        const rowCleared =
+            this.gameScene.terrainManager.clearCurrentRow(checkWorldY);
+
+        if (rowCleared) {
+            console.log(`Player initiated row clear at Y ~ ${checkWorldY}`);
+            // Add sound effect? Visual effect?
+            // this.gameScene.sound.play('dig_sound');
+        } else {
+            // console.log(`Jumped, but no dirt to clear below at Y ~ ${checkWorldY}`);
+        }
     }
 
     bounce() {
@@ -120,46 +134,45 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         );
     }
 
-    handleBoulderCollision(boulder: Boulder) {
-        if (!this.body || !boulder.body) {
-            return; // Safety check
+    handleBoulderCollision(obstacle: Boulder) {
+        if (!this.body || !obstacle.body || !obstacle.active) {
+            return;
         }
 
         const playerBody = this.body as Phaser.Physics.Arcade.Body;
-        const boulderBody = boulder.body as Phaser.Physics.Arcade.Body;
+        const obstacleBody = obstacle.body as Phaser.Physics.Arcade.Body;
 
-        // Check if player is landing on top (give some tolerance)
         const isLandingOnTop =
             playerBody.velocity.y > 0 &&
-            playerBody.bottom <= boulderBody.top + 5;
+            playerBody.bottom <= obstacleBody.top + 5;
 
         if (isLandingOnTop) {
-            // console.log("Player landed on boulder, no damage.");
-            return; // No damage if landing directly on top
+            return;
         }
 
-        const velocityXDiff = playerBody.velocity.x - boulderBody.velocity.x;
-        const velocityYDiff = playerBody.velocity.y - boulderBody.velocity.y;
+        // Use obstacle's velocity - works for both Boulder and StoneEntity
+        const velocityYDiff =
+            playerBody.velocity.y - (obstacleBody.velocity.y || 0);
 
+        // Damage condition (mostly if falling onto player from above)
         const takesDamage =
-            playerBody.position.y > boulderBody.position.y &&
-            (Math.abs(velocityXDiff) > this.VELOCITY_DAMAGE_THRESHOLD_X ||
-                velocityYDiff > this.VELOCITY_DAMAGE_THRESHOLD_Y);
+            obstacleBody.y < playerBody.y && // Obstacle is above player
+            !isLandingOnTop && // Player isn't landing cleanly on top
+            (Math.abs(obstacleBody.velocity.y) >
+                this.VELOCITY_DAMAGE_THRESHOLD_Y / 2 || // Obstacle falling fast
+                Math.abs(velocityYDiff) > this.VELOCITY_DAMAGE_THRESHOLD_Y); // Or significant relative velocity
 
         if (takesDamage) {
             console.log(
-                `Player hit by boulder! VelDiff: (${velocityXDiff.toFixed(
+                `Player hit by Boulder! Vel: Obstacle Y: ${obstacleBody.velocity.y.toFixed(
                     1
-                )}, ${velocityYDiff.toFixed(1)})`
+                )}, Diff Y: ${velocityYDiff.toFixed(1)}`
             );
             this.takeDamage();
-        } else {
-            // It's just a push, physics engine handles it
-            // console.log("Player pushed by boulder, no damage.");
         }
     }
 
-    handleEnemyCollision(enemy: Enemy) {
+    handleEnemyCollision(enemy: Enemy): boolean {
         if (!this.body || !enemy.body || !enemy.active) {
             return false;
         }
@@ -167,10 +180,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const playerBody = this.body as Phaser.Physics.Arcade.Body;
         const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
 
-        const touchingDown =
-            playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + 5;
+        const isStomping =
+            playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + 8; // Increased tolerance
 
-        if (touchingDown) {
+        if (isStomping) {
             console.log("Enemy stomped!");
             enemy.takeDamage(999);
             this.bounce();
@@ -189,15 +202,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             EventBus.emit("stats-changed");
             return true;
         } else if (!this.isInvulnerable) {
-            console.log("Player hit enemy side-on!");
+            console.log("Player ran into enemy!");
             const survived = this.takeDamage();
+            enemy.takeDamage(999);
+
             if (survived) {
                 const knockbackX = this.x < enemy.x ? -150 : 150;
                 const knockbackY = -100;
                 this.setVelocity(knockbackX, knockbackY);
-                this.setTemporaryInvulnerability(500);
             }
-            enemy.takeDamage(999);
             return true;
         }
 

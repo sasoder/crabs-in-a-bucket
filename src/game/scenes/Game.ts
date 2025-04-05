@@ -7,12 +7,13 @@ import { TILE_SIZE, BlockType } from "../constants";
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
 import { Coin } from "../entities/Coin";
+import { GoldEntity } from "../entities/GoldEntity";
 import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
 import { EnemyManager } from "../managers/EnemyManager";
 
 export default class Game extends Phaser.Scene {
-    private player?: Player;
+    public player?: Player;
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
     private TILE_SIZE = TILE_SIZE;
 
@@ -21,15 +22,18 @@ export default class Game extends Phaser.Scene {
     private nextShopDepthThreshold = 10;
     private lastReportedDepth = -1;
     private totalCoinsCollected = 0;
+    private initialPlayerY = 0;
 
     private textureManager!: TextureManager;
     private particleManager!: ParticleManager;
-    private terrainManager!: TerrainManager;
+    public terrainManager!: TerrainManager;
     private shopManager!: ShopManager;
-    private enemyManager!: EnemyManager;
+    private enemyManager?: EnemyManager;
     private bouldersGroup!: Phaser.Physics.Arcade.Group;
     private enemiesGroup!: Phaser.Physics.Arcade.Group;
     private coinsGroup!: Phaser.Physics.Arcade.Group;
+    private goldEntitiesGroup!: Phaser.Physics.Arcade.Group;
+    private rowColliderGroup!: Phaser.Physics.Arcade.StaticGroup;
 
     // Background gradient properties
     private backgroundGradient!: Phaser.GameObjects.Graphics;
@@ -44,6 +48,14 @@ export default class Game extends Phaser.Scene {
     preload() {
         this.textureManager = new TextureManager(this);
         this.textureManager.generateAllTextures();
+        if (this.textures.exists("gold_tile")) {
+            this.textures.addBase64(
+                "gold_entity",
+                this.textures.getBase64("gold_tile")
+            );
+        } else {
+            console.warn("gold_tile texture missing for gold_entity.");
+        }
     }
 
     create() {
@@ -93,17 +105,24 @@ export default class Game extends Phaser.Scene {
             dragX: 80,
         });
 
+        this.goldEntitiesGroup = this.physics.add.group({
+            classType: GoldEntity,
+            runChildUpdate: true,
+            collideWorldBounds: false,
+            allowGravity: true,
+            gravityY: 250,
+            bounceY: 0.3,
+            dragX: 80,
+        });
+
         this.particleManager = new ParticleManager(this);
-        this.particleManager.initializeEmitters([
-            "dirt_tile",
-            "stone_tile",
-            "gold_tile",
-        ]);
+        this.particleManager.initializeEmitters(["dirt_tile", "gold_entity"]);
 
         this.terrainManager = new TerrainManager(
             this,
             this.bouldersGroup,
             this.enemiesGroup,
+            this.goldEntitiesGroup,
             this.coinsGroup,
             this.particleManager
         );
@@ -113,53 +132,44 @@ export default class Game extends Phaser.Scene {
         this.enemyManager = new EnemyManager(this, this.enemiesGroup);
 
         this.terrainManager.generateInitialChunk();
-        const groundLayer = this.terrainManager.getGroundLayer();
-        const map = this.terrainManager.getMap();
+        this.rowColliderGroup = this.terrainManager.getRowColliderGroup();
 
-        this.physics.world.setBounds(
-            0,
-            0,
-            map.widthInPixels,
-            map.heightInPixels
-        );
-        this.cameras.main.setBounds(
-            0,
-            0,
-            map.widthInPixels,
-            map.heightInPixels
-        );
+        // Use getters for map dimensions
+        const mapWidth = this.terrainManager.getMapWidthPixels();
+        const mapHeight = this.terrainManager.getMapHeightPixels();
+
+        this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+        this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
 
         const spawnPoint = this.terrainManager.getInitialSpawnPoint();
+        this.initialPlayerY = spawnPoint.y;
         this.player = new Player(this, spawnPoint.x, spawnPoint.y);
-
-        // Set player name for reference by EnemyManager
         this.player.setName("player");
 
-        this.physics.add.collider(this.player, groundLayer);
-        this.physics.add.collider(this.bouldersGroup, groundLayer);
-        this.physics.add.collider(this.enemiesGroup, groundLayer);
-        this.physics.add.collider(this.coinsGroup, groundLayer);
-        this.physics.add.collider(this.bouldersGroup, this.bouldersGroup);
-
-        // Add collider between enemies to prevent stacking
+        this.physics.add.collider(this.player, this.rowColliderGroup);
+        this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup);
         this.physics.add.collider(this.enemiesGroup, this.enemiesGroup);
-
-        // Add collider between boulders and enemies
+        this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
         this.physics.add.collider(
-            this.bouldersGroup,
-            this.enemiesGroup,
-            this
-                .handleBoulderEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            undefined,
-            this
+            this.goldEntitiesGroup,
+            this.rowColliderGroup
         );
+        this.physics.add.collider(this.bouldersGroup, this.goldEntitiesGroup);
+        this.physics.add.collider(this.enemiesGroup, this.goldEntitiesGroup);
 
         this.physics.add.overlap(
             this.player,
             this.enemiesGroup,
             this
                 .handlePlayerEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            undefined,
+            (playerGO, enemyGO) => {
+                return (
+                    playerGO instanceof Player &&
+                    enemyGO instanceof Enemy &&
+                    playerGO.active &&
+                    enemyGO.active
+                );
+            },
             this
         );
         this.physics.add.collider(
@@ -168,7 +178,9 @@ export default class Game extends Phaser.Scene {
             (playerGO, boulderGO) => {
                 if (
                     playerGO instanceof Player &&
-                    boulderGO instanceof Boulder
+                    boulderGO instanceof Boulder &&
+                    playerGO.active &&
+                    boulderGO.active
                 ) {
                     playerGO.handleBoulderCollision(boulderGO);
                 }
@@ -178,10 +190,32 @@ export default class Game extends Phaser.Scene {
         );
         this.physics.add.overlap(
             this.player,
+            this.goldEntitiesGroup,
+            this
+                .handlePlayerGoldCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            (playerGO, goldGO) => {
+                return (
+                    playerGO instanceof Player &&
+                    goldGO instanceof GoldEntity &&
+                    playerGO.active &&
+                    goldGO.active
+                );
+            },
+            this
+        );
+        this.physics.add.overlap(
+            this.player,
             this.coinsGroup,
             this
                 .handlePlayerCoinCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            undefined,
+            (playerGO, coinGO) => {
+                return (
+                    playerGO instanceof Player &&
+                    coinGO instanceof Coin &&
+                    playerGO.active &&
+                    coinGO.active
+                );
+            },
             this
         );
 
@@ -208,7 +242,6 @@ export default class Game extends Phaser.Scene {
         EventBus.on("restart-game", this.handleRestartGame, this);
         EventBus.on("player-died", this.gameOver, this);
         EventBus.on("open-shop-requested", this.pauseForShop, this);
-        EventBus.on("player-dig-attempt", this.handleDigAttempt, this);
         EventBus.on("create-explosion", this.handleCreateExplosion, this);
         EventBus.on(
             "player-damaged",
@@ -216,6 +249,13 @@ export default class Game extends Phaser.Scene {
             this
         );
         EventBus.on("stats-changed", () => this.emitStatsUpdate(true), this);
+        EventBus.on(
+            "dirt-row-cleared",
+            (data: { tileY: number }) => {
+                this.checkEntitiesFalling(data.tileY);
+            },
+            this
+        );
 
         console.log("Game Scene Event Listeners Setup.");
     }
@@ -225,11 +265,10 @@ export default class Game extends Phaser.Scene {
         EventBus.off("restart-game", this.handleRestartGame, this);
         EventBus.off("player-died", this.gameOver, this);
         EventBus.off("open-shop-requested", this.pauseForShop, this);
-        EventBus.off("player-dig-attempt", this.handleDigAttempt, this);
         EventBus.off("create-explosion", this.handleCreateExplosion, this);
-        EventBus.off("block-destroyed", undefined, this);
         EventBus.off("player-damaged", undefined, this);
         EventBus.off("stats-changed", undefined, this);
+        EventBus.off("dirt-row-cleared", undefined, this);
 
         console.log("Game Scene Event Listeners Removed.");
     }
@@ -248,31 +287,29 @@ export default class Game extends Phaser.Scene {
     }
 
     updateBackgroundGradient(depth: number) {
-        // Calculate darkness factor (0 to 1) based on depth
         const darknessFactor = Math.min(depth / this.maxDarkeningDepth, 1);
 
-        // Extract RGB components from surface and deep colors
-        const surfaceR = (this.surfaceColor >> 16) & 0xff;
-        const surfaceG = (this.surfaceColor >> 8) & 0xff;
-        const surfaceB = this.surfaceColor & 0xff;
+        const surfaceColor = Phaser.Display.Color.ValueToColor(
+            this.surfaceColor
+        );
+        const deepColor = Phaser.Display.Color.ValueToColor(this.deepColor);
 
-        const deepR = (this.deepColor >> 16) & 0xff;
-        const deepG = (this.deepColor >> 8) & 0xff;
-        const deepB = this.deepColor & 0xff;
+        const interpolatedColor =
+            Phaser.Display.Color.Interpolate.ColorWithColor(
+                surfaceColor,
+                deepColor,
+                100,
+                depth
+            );
 
-        // Interpolate between surface and deep colors based on darkness factor
-        const r = Math.floor(surfaceR + (deepR - surfaceR) * darknessFactor);
-        const g = Math.floor(surfaceG + (deepG - surfaceG) * darknessFactor);
-        const b = Math.floor(surfaceB + (deepB - surfaceB) * darknessFactor);
+        const colorValue = Phaser.Display.Color.GetColor(
+            interpolatedColor.r,
+            interpolatedColor.g,
+            interpolatedColor.b
+        );
 
-        // Convert RGB back to hex color
-        const currentColor = (r << 16) | (g << 8) | b;
-
-        // Clear previous gradient
+        this.cameras.main.setBackgroundColor(colorValue);
         this.backgroundGradient.clear();
-
-        // Set the background color
-        this.cameras.main.setBackgroundColor(currentColor);
     }
 
     update(time: number, delta: number) {
@@ -288,13 +325,9 @@ export default class Game extends Phaser.Scene {
         this.player.update(this.cursors, time, delta);
 
         const playerFeetY = this.player.body.bottom;
-        const startingRowY =
-            this.terrainManager.getInitialSpawnPoint().y -
-            this.TILE_SIZE / 2 +
-            this.TILE_SIZE;
         const calculatedDepth = Math.max(
             0,
-            Math.floor((playerFeetY - startingRowY) / this.TILE_SIZE)
+            Math.floor((playerFeetY - this.initialPlayerY) / this.TILE_SIZE)
         );
 
         let depthJustIncreased = false;
@@ -308,7 +341,6 @@ export default class Game extends Phaser.Scene {
             this.currentDepth = calculatedDepth;
             this.emitStatsUpdate();
 
-            // Update background gradient when depth changes
             this.updateBackgroundGradient(this.currentDepth);
         }
 
@@ -357,12 +389,6 @@ export default class Game extends Phaser.Scene {
         }
     }
 
-    private handleDigAttempt(data: { worldX: number; worldY: number }) {
-        if (!this.terrainManager || !this.scene.isActive()) return;
-
-        this.terrainManager.digBlockAt(data.worldX, data.worldY);
-    }
-
     handlePlayerEnemyCollision(
         playerGO: Phaser.GameObjects.GameObject,
         enemyGO: Phaser.GameObjects.GameObject
@@ -391,6 +417,44 @@ export default class Game extends Phaser.Scene {
 
         // Use the static method from Coin class
         Coin.handlePlayerCoinCollect(this, this.coinsGroup, playerGO, coinGO);
+    }
+
+    handlePlayerGoldCollect(
+        playerGO: Phaser.GameObjects.GameObject,
+        goldGO: Phaser.GameObjects.GameObject
+    ) {
+        if (
+            playerGO instanceof Player &&
+            goldGO instanceof GoldEntity &&
+            goldGO.active
+        ) {
+            // Logic similar to coin collection, but maybe different value/effect
+            const goldValue = 25; // Example value
+            const currentCoins = this.registry.get("coins") as number;
+            this.registry.set("coins", currentCoins + goldValue);
+
+            // Update total coins collected
+            let totalCoinsCollected =
+                (this.registry.get("totalCoinsCollected") as number) || 0;
+            totalCoinsCollected += goldValue;
+            this.registry.set("totalCoinsCollected", totalCoinsCollected);
+
+            EventBus.emit("stats-changed"); // Use the generic stats changed event
+
+            // Trigger particle effect for gold
+            if (this.particleManager) {
+                this.particleManager.triggerParticles(
+                    "gold_entity",
+                    goldGO.x,
+                    goldGO.y,
+                    { count: 10, speed: 150 }
+                );
+            }
+            // Play sound?
+            // this.sound.play('gold_collect_sound');
+
+            goldGO.destroy(); // Remove the gold entity
+        }
     }
 
     gameOver() {
@@ -462,6 +526,12 @@ export default class Game extends Phaser.Scene {
         if (this.coinsGroup) {
             this.coinsGroup.destroy(true);
         }
+        if (this.goldEntitiesGroup) {
+            this.goldEntitiesGroup.destroy(true);
+        }
+        if (this.rowColliderGroup) {
+            this.rowColliderGroup.destroy(true);
+        }
         console.log("Destroyed physics groups.");
 
         this.cameras.main.stopFollow();
@@ -487,15 +557,36 @@ export default class Game extends Phaser.Scene {
         this.bouldersGroup = undefined!;
         this.enemiesGroup = undefined!;
         this.coinsGroup = undefined!;
+        this.goldEntitiesGroup = undefined!;
+        this.rowColliderGroup = undefined!;
 
         console.log("Game scene shutdown complete.");
     }
 
-    private handleBoulderEnemyCollision(boulderObj: any, enemyObj: any) {
-        if (boulderObj instanceof Boulder && enemyObj instanceof Enemy) {
-            return enemyObj.handleBoulderCollision(boulderObj);
-        }
-        return false;
+    checkEntitiesFalling(clearedTileY: number) {
+        const checkY = clearedTileY * this.TILE_SIZE;
+
+        this.enemiesGroup.getChildren().forEach((go) => {
+            const enemy = go as Enemy;
+            if (!enemy.active || !enemy.body) return;
+            const enemyTileY = Math.floor(enemy.y / this.TILE_SIZE);
+            if (enemyTileY === clearedTileY - 1) {
+            }
+        });
+        this.bouldersGroup.getChildren().forEach((go) => {
+            const boulder = go as Boulder;
+            if (!boulder.active || !boulder.body) return;
+            const boulderTileY = Math.floor(boulder.y / this.TILE_SIZE);
+            if (boulderTileY === clearedTileY - 1) {
+            }
+        });
+        this.goldEntitiesGroup.getChildren().forEach((go) => {
+            const gold = go as GoldEntity;
+            if (!gold.active || !gold.body) return;
+            const goldTileY = Math.floor(gold.y / this.TILE_SIZE);
+            if (goldTileY === clearedTileY - 1) {
+            }
+        });
     }
 }
 
