@@ -29,6 +29,12 @@ export default class Game extends Phaser.Scene {
     private enemiesGroup!: Phaser.Physics.Arcade.Group;
     private coinsGroup!: Phaser.Physics.Arcade.Group;
 
+    // Background gradient properties
+    private backgroundGradient!: Phaser.GameObjects.Graphics;
+    private surfaceColor = 0x87ceeb; // Light blue sky at surface
+    private deepColor = 0x0a1a2a; // Dark blue/black for deep underground
+    private maxDarkeningDepth = 100; // Depth at which max darkness is reached
+
     constructor() {
         super("Game");
     }
@@ -56,7 +62,10 @@ export default class Game extends Phaser.Scene {
         this.lastReportedDepth = -1;
         this.totalCoinsCollected = 0;
 
-        this.cameras.main.setBackgroundColor(0x87ceeb);
+        // Initialize background gradient
+        this.backgroundGradient = this.add.graphics();
+        this.updateBackgroundGradient(0);
+
         this.cameras.main.resetFX();
 
         this.bouldersGroup = this.physics.add.group({
@@ -222,6 +231,34 @@ export default class Game extends Phaser.Scene {
         }
     }
 
+    updateBackgroundGradient(depth: number) {
+        // Calculate darkness factor (0 to 1) based on depth
+        const darknessFactor = Math.min(depth / this.maxDarkeningDepth, 1);
+
+        // Extract RGB components from surface and deep colors
+        const surfaceR = (this.surfaceColor >> 16) & 0xff;
+        const surfaceG = (this.surfaceColor >> 8) & 0xff;
+        const surfaceB = this.surfaceColor & 0xff;
+
+        const deepR = (this.deepColor >> 16) & 0xff;
+        const deepG = (this.deepColor >> 8) & 0xff;
+        const deepB = this.deepColor & 0xff;
+
+        // Interpolate between surface and deep colors based on darkness factor
+        const r = Math.floor(surfaceR + (deepR - surfaceR) * darknessFactor);
+        const g = Math.floor(surfaceG + (deepG - surfaceG) * darknessFactor);
+        const b = Math.floor(surfaceB + (deepB - surfaceB) * darknessFactor);
+
+        // Convert RGB back to hex color
+        const currentColor = (r << 16) | (g << 8) | b;
+
+        // Clear previous gradient
+        this.backgroundGradient.clear();
+
+        // Set the background color
+        this.cameras.main.setBackgroundColor(currentColor);
+    }
+
     update(time: number, delta: number) {
         if (
             !this.cursors ||
@@ -254,6 +291,9 @@ export default class Game extends Phaser.Scene {
         if (calculatedDepth !== this.currentDepth || depthJustIncreased) {
             this.currentDepth = calculatedDepth;
             this.emitStatsUpdate();
+
+            // Update background gradient when depth changes
+            this.updateBackgroundGradient(this.currentDepth);
         }
 
         if (
@@ -407,6 +447,12 @@ export default class Game extends Phaser.Scene {
 
         this.cameras.main.stopFollow();
         this.cameras.main.resetFX();
+
+        // Clean up background gradient
+        if (this.backgroundGradient) {
+            this.backgroundGradient.clear();
+            this.backgroundGradient.destroy();
+        }
 
         if (this.player) {
             this.player.destroy();

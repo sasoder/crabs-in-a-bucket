@@ -43,6 +43,8 @@ export class TerrainManager {
     private enemiesGroup: Phaser.Physics.Arcade.Group;
     private coinsGroup?: Phaser.Physics.Arcade.Group;
     private particleManager?: any;
+    // Add a map to track block health
+    private blockHealth: Map<string, number> = new Map();
 
     // Map dimensions (adjust as needed)
     private mapWidth = 50; // Increased width for more space
@@ -148,6 +150,11 @@ export class TerrainManager {
         this.generatedRowsMaxY = this.initialClearRows * TILE_SIZE;
     }
 
+    // Helper method to generate unique tile key
+    private getTileKey(tileX: number, tileY: number): string {
+        return `${tileX},${tileY}`;
+    }
+
     public getGroundLayer(): Phaser.Tilemaps.TilemapLayer {
         return this.groundLayer;
     }
@@ -213,37 +220,101 @@ export class TerrainManager {
 
         if (tileX === null || tileY === null) return result;
 
-        const tileToRemove = this.groundLayer.getTileAt(tileX, tileY);
-        const blockConfig = this.getBlockConfigFromTile(tileToRemove);
+        const tile = this.groundLayer.getTileAt(tileX, tileY);
+        const blockConfig = this.getBlockConfigFromTile(tile);
 
-        if (tileToRemove && blockConfig?.isDestructible) {
+        if (tile && blockConfig?.isDestructible) {
             const blockType = blockConfig.id;
             const textureKey = blockConfig.textureKey ?? null;
             const baseCoinChance = blockConfig.dropsCoinChance ?? 0;
+            const tileKey = this.getTileKey(tileX, tileY);
+            const hardness = blockConfig.hardness ?? 1;
 
-            this.groundLayer.removeTileAt(tileX, tileY); // Remove the tile first
-            console.log(
-                `Dug block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}`
-            );
+            // Initialize health if not already tracked
+            if (!this.blockHealth.has(tileKey)) {
+                this.blockHealth.set(tileKey, hardness);
+            }
 
-            // Handle block destruction effects
-            this.handleBlockDestroyed(
-                tileToRemove.pixelX,
-                tileToRemove.pixelY,
-                blockType,
-                baseCoinChance,
-                textureKey
-            );
+            // Get current health and reduce by 1
+            let currentHealth = this.blockHealth.get(tileKey) || 0;
+            currentHealth--;
+
+            // Update health or destroy if depleted
+            if (currentHealth <= 0) {
+                // Block is fully destroyed
+                this.groundLayer.removeTileAt(tileX, tileY);
+                this.blockHealth.delete(tileKey);
+                console.log(
+                    `Fully destroyed block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}`
+                );
+
+                // Handle block destruction effects
+                this.handleBlockDestroyed(
+                    tile.pixelX,
+                    tile.pixelY,
+                    blockType,
+                    baseCoinChance,
+                    textureKey
+                );
+            } else {
+                // Block is damaged but not destroyed
+                this.blockHealth.set(tileKey, currentHealth);
+                console.log(
+                    `Damaged block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}, health: ${currentHealth}/${hardness}`
+                );
+
+                // Visual feedback for damage
+                this.showBlockDamageEffect(tile, currentHealth, hardness);
+            }
 
             result = { textureKey: textureKey, blockType: blockType };
         } else {
             console.log(
-                `Failed to dig block at [${tileX}, ${tileY}] (Tile: ${tileToRemove?.index}, Config: ${blockConfig?.id}, Destructible: ${blockConfig?.isDestructible})`
+                `Failed to dig block at [${tileX}, ${tileY}] (Tile: ${tile?.index}, Config: ${blockConfig?.id}, Destructible: ${blockConfig?.isDestructible})`
             );
             result.blockType = blockConfig?.id ?? null; // Still return block type if known
         }
 
         return result; // Return texture key and block type
+    }
+
+    private showBlockDamageEffect(
+        tile: Phaser.Tilemaps.Tile,
+        currentHealth: number,
+        maxHealth: number
+    ) {
+        // Calculate damage percentage
+        const damagePercent = 1 - currentHealth / maxHealth;
+
+        // Apply visual effect based on damage level
+        // Here we're just changing the alpha, but you could use a texture or tint
+        if (damagePercent <= 0.33) {
+            tile.setAlpha(0.9); // Slightly damaged
+        } else if (damagePercent <= 0.66) {
+            tile.setAlpha(0.75); // Medium damage
+        } else {
+            tile.setAlpha(0.5); // Heavily damaged
+        }
+
+        // Optional: apply a crack overlay or tint
+        tile.tint = 0xcccccc; // Slight gray tint
+
+        // Create small damage particles
+        if (this.particleManager) {
+            const config = this.getBlockConfigFromTile(tile);
+            if (config?.textureKey) {
+                // Use fewer particles for damage effect
+                this.particleManager.triggerParticles(
+                    config.textureKey,
+                    tile.pixelX,
+                    tile.pixelY,
+                    { count: 3 }
+                );
+                console.log(
+                    `Triggered damage particles for ${config.textureKey} at (${tile.pixelX}, ${tile.pixelY})`
+                );
+            }
+        }
     }
 
     public handleBlockDestroyed(
@@ -255,7 +326,13 @@ export class TerrainManager {
     ) {
         // Show particles if particle manager exists
         if (textureKey && this.particleManager) {
-            this.particleManager.triggerParticles(textureKey, worldX, worldY);
+            // Use stronger particle effect for complete destruction
+            this.particleManager.triggerParticles(textureKey, worldX, worldY, {
+                count: 30,
+            });
+            console.log(
+                `Triggered destruction particles for ${textureKey} at (${worldX}, ${worldY})`
+            );
         }
 
         // Handle coin spawning
@@ -327,12 +404,15 @@ export class TerrainManager {
             if (blockType === BlockType.EMPTY) {
                 // Ensure tile is actually removed if it exists
                 this.groundLayer.removeTileAt(tileX, tileY);
+                // Clear any health tracking for this tile
+                this.blockHealth.delete(this.getTileKey(tileX, tileY));
                 return null; // Indicate no tile was placed
             } else {
                 console.warn(
                     `Config lookup failed for non-EMPTY type ${BlockType[blockType]}. Handling as EMPTY.`
                 );
                 this.groundLayer.removeTileAt(tileX, tileY);
+                this.blockHealth.delete(this.getTileKey(tileX, tileY));
                 return null;
             }
         }
@@ -344,6 +424,14 @@ export class TerrainManager {
         try {
             // Use config.id which corresponds to the BlockType enum value / tileset GID
             tile = this.groundLayer.putTileAt(config.id, tileX, tileY);
+
+            // Initialize block health based on hardness
+            if (tile && config.hardness) {
+                this.blockHealth.set(
+                    this.getTileKey(tileX, tileY),
+                    config.hardness
+                );
+            }
         } catch (error) {
             console.error(
                 `!!! ERROR during putTileAt [${tileX}, ${tileY}] with ID ${config.id} !!!`

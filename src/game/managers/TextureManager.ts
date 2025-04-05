@@ -16,6 +16,32 @@ export class TextureManager {
         this.createTileTexture(BlockType.GOLD, 0xffd700);
         this.createCoinTexture();
         console.log("Dynamic texture generation complete.");
+
+        // Debug: verify textures were created
+        this.verifyTextures();
+    }
+
+    private verifyTextures(): void {
+        const expectedTextures = [
+            "dirt_tile",
+            "stone_tile",
+            "gold_tile",
+            "coin",
+        ];
+        console.log("Verifying generated textures...");
+
+        for (const textureKey of expectedTextures) {
+            if (this.scene.textures.exists(textureKey)) {
+                const frame = this.scene.textures.getFrame(textureKey);
+                console.log(
+                    `✓ Texture '${textureKey}' exists with dimensions ${frame.width}x${frame.height}`
+                );
+            } else {
+                console.error(
+                    `✗ Texture '${textureKey}' was NOT created successfully`
+                );
+            }
+        }
     }
 
     private createTileTexture(type: BlockType, color: number): void {
