@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { EventBus } from "../EventBus";
 import { Player } from "../Player";
+import { RELICS, type Relic } from "../data/Relics";
 
 export default class Game extends Phaser.Scene {
     private player?: Player;
@@ -9,10 +10,12 @@ export default class Game extends Phaser.Scene {
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private TILE_SIZE = 16;
     private crackTexture: string = "tile-cracked";
+    private digParticles?: Phaser.GameObjects.Particles.ParticleEmitter;
 
     private currentDepth = 0;
     private maxDepthReached = 0;
     private nextShopDepthThreshold = 10;
+    private lastReportedDepth = -1; // Track last depth sent
 
     constructor() {
         super("Game");
@@ -110,11 +113,11 @@ export default class Game extends Phaser.Scene {
         this.cameras.main.setBackgroundColor(0x87ceeb); // Sky blue background
 
         // Create a background grid to show tile positions
-        this.createBackgroundGrid();
+        // this.createBackgroundGrid(); // DISABLED FOR PERFORMANCE TEST
 
         // --- Tilemap Setup ---
         const mapWidth = 30;
-        const mapHeight = 200;
+        const mapHeight = 20;
         const mapData: number[][] = [];
 
         // Create basic map data (1 for block, 0 for empty)
@@ -199,23 +202,29 @@ export default class Game extends Phaser.Scene {
         this.cameras.main.setZoom(2);
 
         // --- Initial State & UI ---
+        const initialRelics: Relic[] = [
+            RELICS.STEEL_TOED_BOOTS,
+            RELICS.IMPACT_TREMOR,
+        ];
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
-        this.registry.set("relics", []);
+        this.registry.set("relics", initialRelics);
         this.registry.set("consumables", []);
-        EventBus.emit("update-stats", {
-            lives: this.registry.get("lives"),
-            coins: this.registry.get("coins"),
-            depth: this.currentDepth,
-            relics: this.registry.get("relics"),
-            consumables: this.registry.get("consumables"),
-        });
 
-        // Enable physics debug AFTER player/world setup
-        this.physics.world.createDebugGraphic();
-        if (this.physics.world.debugGraphic) {
-            this.physics.world.debugGraphic.visible = true;
-        }
+        // --- Emit Initial Stats ---
+        this.emitStatsUpdate(); // Use a helper function
+
+        // --- Initialize Particle Emitter (but don't start it yet) ---
+        // Make sure 'tile' texture is loaded in preload
+        this.digParticles = this.add.particles(0, 0, "tile", {
+            speed: 100,
+            scale: { start: 0.2, end: 0.01 },
+            quantity: 5,
+            lifespan: 300,
+            gravityY: 200,
+            emitting: false, // Start paused
+        });
+        this.digParticles.setDepth(1); // Ensure particles are above tiles if needed
 
         // --- Event Listeners ---
         EventBus.on("close-shop", this.resumeGame, this);
@@ -240,7 +249,7 @@ export default class Game extends Phaser.Scene {
 
     createBackgroundGrid() {
         const mapWidth = 30;
-        const mapHeight = 200;
+        const mapHeight = 20;
 
         const graphics = this.add.graphics();
         graphics.lineStyle(1, 0xdddddd, 0.3);
@@ -289,34 +298,65 @@ export default class Game extends Phaser.Scene {
             Math.floor((playerBottomY - startingRowY) / this.TILE_SIZE)
         );
 
+        let depthJustIncreased = false;
         if (calculatedDepth > this.maxDepthReached) {
             this.maxDepthReached = calculatedDepth;
             this.currentDepth = this.maxDepthReached;
-            EventBus.emit("update-stats", {
-                lives: this.registry.get("lives"),
-                coins: this.registry.get("coins"),
-                depth: this.currentDepth,
-                relics: this.registry.get("relics"),
-                consumables: this.registry.get("consumables"),
-            });
-
-            // --- Shop Trigger Check ---
-            if (this.currentDepth >= this.nextShopDepthThreshold) {
-                this.nextShopDepthThreshold += 10;
-                this.scene.pause();
-                EventBus.emit("open-shop");
-                return;
-            }
+            depthJustIncreased = true; // Flag that depth increased this frame
         }
 
-        // Update player logic (handles its own movement now)
+        // --- Emit Stats Update (Only if depth increased) ---
+        if (depthJustIncreased) {
+            this.emitStatsUpdate(); // Use the helper
+        }
+
+        // --- Shop Trigger Check ---
+        if (
+            depthJustIncreased &&
+            this.currentDepth >= this.nextShopDepthThreshold
+        ) {
+            this.nextShopDepthThreshold += 10;
+            this.scene.pause();
+            EventBus.emit("open-shop");
+            return; // Stop update if paused for shop
+        }
+
+        // --- Player Update (Pass Delta Time) ---
         if (this.player) {
-            this.player.update();
+            this.player.update(time, delta); // Pass time and delta to player
+        }
+    }
+
+    // Helper to emit stats only when changed
+    emitStatsUpdate(force = false) {
+        const currentLives = this.registry.get("lives");
+        const currentCoins = this.registry.get("coins");
+        const currentRelics = this.registry.get("relics");
+        const currentConsumables = this.registry.get("consumables");
+        // Only update depth if it's a new whole number
+        const depthChanged = this.currentDepth !== this.lastReportedDepth;
+
+        // Check if anything significant changed (or if forced)
+        // TODO: Compare relic/consumable arrays more robustly if needed
+        if (
+            force ||
+            depthChanged // || other conditions like lives change, coin change etc.
+            // You'll need to call emitStatsUpdate() whenever lives/coins change too
+        ) {
+            this.lastReportedDepth = this.currentDepth; // Update last reported depth
+            EventBus.emit("update-stats", {
+                lives: currentLives,
+                coins: currentCoins,
+                depth: this.currentDepth,
+                relics: currentRelics,
+                consumables: currentConsumables,
+            });
+            // console.log("Stats Updated:", this.currentDepth); // For debugging
         }
     }
 
     private handleDigAttempt(data: { worldX: number; worldY: number }) {
-        if (!this.groundLayer || !this.TILE_SIZE) return; // Ensure layer exists
+        if (!this.groundLayer || !this.TILE_SIZE || !this.digParticles) return; // Ensure emitter exists
 
         const digTileX = this.groundLayer.worldToTileX(data.worldX);
         const digTileY = this.groundLayer.worldToTileY(data.worldY);
@@ -328,27 +368,12 @@ export default class Game extends Phaser.Scene {
         // Check if it's a destructible tile (assuming index 1 is destructible)
         if (tileToRemove && tileToRemove.index === 1) {
             // --- Tile Removal & Effects ---
-            try {
-                const tilePixelX =
-                    digTileX * this.TILE_SIZE + this.TILE_SIZE / 2;
-                const tilePixelY =
-                    digTileY * this.TILE_SIZE + this.TILE_SIZE / 2;
-                const particles = this.add.particles(
-                    tilePixelX,
-                    tilePixelY,
-                    "tile", // Make sure 'tile' texture is loaded
-                    {
-                        speed: 100,
-                        scale: { start: 0.2, end: 0.01 },
-                        quantity: 5,
-                        lifespan: 300,
-                        gravityY: 200,
-                    }
-                );
-                this.time.delayedCall(500, () => particles.destroy());
-            } catch (error) {
-                console.warn("Could not create particles:", error);
-            }
+            const tilePixelX = digTileX * this.TILE_SIZE + this.TILE_SIZE / 2;
+            const tilePixelY = digTileY * this.TILE_SIZE + this.TILE_SIZE / 2;
+
+            // Use the existing emitter
+            this.digParticles.setPosition(tilePixelX, tilePixelY);
+            this.digParticles.explode(15); // Emit 5 particles at the new location
 
             // Replace the tile with an empty one (0 index)
             const placedTile = this.groundLayer.putTileAt(

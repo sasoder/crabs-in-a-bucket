@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { EventBus } from "../EventBus"; // Import EventBus if you need scene-ready event
 
 export default class Preloader extends Phaser.Scene {
     constructor() {
@@ -6,12 +7,104 @@ export default class Preloader extends Phaser.Scene {
     }
 
     preload() {
-        // No assets to load for now
+        // Display a loading bar
+        const progressBar = this.add.graphics();
+        const progressBox = this.add.graphics();
+        progressBox.fillStyle(0x222222, 0.8);
+        progressBox.fillRect(
+            this.cameras.main.width / 2 - 160,
+            this.cameras.main.height / 2 - 25,
+            320,
+            50
+        );
+
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const loadingText = this.make.text({
+            x: width / 2,
+            y: height / 2 - 50,
+            text: "Loading...",
+            style: {
+                font: "20px monospace",
+                color: "#ffffff", // Changed fill to color
+            },
+        });
+        loadingText.setOrigin(0.5, 0.5);
+
+        const percentText = this.make.text({
+            x: width / 2,
+            y: height / 2,
+            text: "0%",
+            style: {
+                font: "18px monospace",
+                color: "#ffffff", // Changed fill to color
+            },
+        });
+        percentText.setOrigin(0.5, 0.5);
+
+        this.load.on("progress", (value: number) => {
+            percentText.setText(parseInt(String(value * 100)) + "%"); // Fixed calculation
+            progressBar.clear();
+            progressBar.fillStyle(0xffffff, 1);
+            progressBar.fillRect(
+                width / 2 - 150,
+                height / 2 - 15,
+                300 * value,
+                30
+            );
+        });
+
+        this.load.on("complete", () => {
+            progressBar.destroy();
+            progressBox.destroy();
+            loadingText.destroy();
+            percentText.destroy();
+            this.scene.start("Game"); // Start Game scene after loading
+        });
+
+        // --- Load your actual game assets here ---
+        // Examples (replace with your actual paths and keys):
+        this.load.image("background", "assets/bg.png"); // If you have a static background
+        this.load.image("block", "assets/tiles/block.png");
+        this.load.image("coin", "assets/items/coin.png");
+        this.load.image("heart", "assets/ui/heart.png");
+        this.load.spritesheet("player", "assets/sprites/player.png", {
+            frameWidth: 32, // Adjust frame size
+            frameHeight: 32,
+        });
+        this.load.spritesheet("enemy", "assets/sprites/enemy.png", {
+            frameWidth: 32, // Adjust frame size
+            frameHeight: 32,
+        });
+        // this.load.audio('jumpSound', 'assets/audio/jump.wav');
+        // this.load.audio('coinSound', 'assets/audio/coin.wav');
+        // ... load all other assets needed by the Game scene ...
+
+        // Load relic images (if not already handled by React/CSS)
+        this.load.image(
+            "relic_steel_toed_boots",
+            "assets/relics/steel_toed_boots.png"
+        );
+        this.load.image(
+            "relic_impact_tremor",
+            "assets/relics/impact_tremor.png"
+        );
+        // ... add all other relic images ...
+
+        // Load consumable images
+        this.load.image("consumable_bomb", "assets/consumables/bomb.png");
+        this.load.image(
+            "consumable_drill_charge",
+            "assets/consumables/drill_charge.png"
+        );
+        // ... add all other consumable images ...
     }
 
     create() {
-        // Start the game scene directly
-        this.scene.start("Game");
+        // Assets are loaded, 'complete' event listener handles starting the next scene.
+        // You might emit scene-ready here if needed for other logic, but
+        // for simply starting the next scene, the 'complete' listener is sufficient.
+        // EventBus.emit('current-scene-ready', this);
     }
 }
 

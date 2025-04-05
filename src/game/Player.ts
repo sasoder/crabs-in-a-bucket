@@ -1,9 +1,6 @@
 import Phaser from "phaser";
 import { EventBus } from "./EventBus"; // Make sure EventBus is correctly imported
 
-// Configuration Constants
-const MOVE_VELOCITY = 200;
-const JUMP_VELOCITY = -130;
 const PLAYER_WIDTH = 12;
 const PLAYER_HEIGHT = 20;
 const PLAYER_TEXTURE_KEY = "player_rect";
@@ -11,6 +8,10 @@ const PLAYER_TEXTURE_KEY = "player_rect";
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
     private jumpKey: Phaser.Input.Keyboard.Key | null = null;
+    private moveSpeed = 150; // Pixels per second
+    private jumpVelocity = -150; // Negative for upward velocity
+    private lastJumpTime = 0;
+    private jumpCooldown = 300; // Milliseconds
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         // Create the red rectangle texture if it doesn't exist
@@ -44,38 +45,57 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         } else {
             console.error("Keyboard plugin is not enabled in the scene");
         }
+
+        // Add a simple visual representation if no sprite exists
+        if (!this.texture || this.texture.key === "__MISSING") {
+            this.setSize(16, 16);
+            // Optional: Add a graphics object child for visualization
+            const graphics = scene.make.graphics({
+                x: -this.width / 2,
+                y: -this.height / 2,
+            });
+            graphics.fillStyle(0xff0000, 1); // Red color
+            graphics.fillRect(0, 0, this.width, this.height);
+            // this.add(graphics);
+        }
     }
 
-    update() {
+    update(time: number, delta: number) {
         if (!this.cursors || !this.jumpKey || !this.body) {
             return;
         }
 
+        const body = this.body as Phaser.Physics.Arcade.Body; // Type assertion for velocity access
+
         // Horizontal Movement
         if (this.cursors.left.isDown) {
-            this.setVelocityX(-MOVE_VELOCITY);
+            body.setVelocityX(-this.moveSpeed); // Use base speed directly (Phaser handles delta internally for setVelocity)
+            this.setFlipX(true); // Flip sprite left
         } else if (this.cursors.right.isDown) {
-            this.setVelocityX(MOVE_VELOCITY);
+            body.setVelocityX(this.moveSpeed);
+            this.setFlipX(false); // Normal sprite orientation
         } else {
-            this.setVelocityX(0);
+            body.setVelocityX(0);
         }
 
         // Jumping and Digging Intention
+        const canJump = body.blocked.down || body.touching.down; // More reliable ground check
         if (
-            Phaser.Input.Keyboard.JustDown(this.jumpKey) && // Use JustDown to prevent rapid fire digging
-            this.body.blocked.down
+            this.cursors.space.isDown &&
+            canJump &&
+            time > this.lastJumpTime + this.jumpCooldown
         ) {
-            // Request jump velocity immediately
-            this.setVelocityY(JUMP_VELOCITY);
+            body.setVelocityY(this.jumpVelocity);
+            this.lastJumpTime = time;
 
             // Calculate potential dig location
-            const digWorldY = this.y + this.displayHeight / 2 + 1; // Below feet
-            const digWorldX = this.x;
+            const digX = this.x;
+            const digY = body.bottom + 8; // 8 pixels below feet center, adjust TILE_SIZE?
 
             // Emit an event asking the scene to handle the dig action
             EventBus.emit("player-dig-attempt", {
-                worldX: digWorldX,
-                worldY: digWorldY,
+                worldX: digX,
+                worldY: digY,
             });
         }
     }

@@ -4,8 +4,9 @@ import { IRefPhaserGame, PhaserGame } from "./game/PhaserGame";
 import { EventBus } from "./game/EventBus";
 import { ShopModal } from "./components/ShopModal";
 import { StatsDisplay } from "./components/StatsDisplay";
-import { RelicsDisplay } from "./components/RelicsDisplay";
+import RelicDisplay from "./components/RelicsDisplay";
 import { ConsumablesDisplay } from "./components/ConsumablesDisplay";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface PlayerStats {
     lives: number;
@@ -42,22 +43,19 @@ function App() {
             };
             EventBus.on("open-shop", openShop);
 
-            // Cleanup listeners when component unmounts or gameStarted becomes false
+            // Cleanup listeners when component unmounts
             return () => {
                 EventBus.off("update-stats", updateStats);
                 EventBus.off("open-shop", openShop);
             };
-        } else {
-            // Set gameStarted to true after the initial render
-            setGameStarted(true);
         }
-        // No cleanup needed if listeners weren't added
-        return () => {};
+        // No effect or cleanup needed if game hasn't started
     }, [gameStarted]);
 
     const startGame = () => {
         setGameStarted(true);
-        setTimeout(() => EventBus.emit("start-game"), 100);
+        // Emit immediately when game is started via button click
+        EventBus.emit("start-game");
     };
 
     const closeShop = () => {
@@ -71,6 +69,7 @@ function App() {
     };
 
     return (
+        // <TooltipProvider>
         <div
             id="app"
             className="h-screen w-screen bg-gray-800 flex justify-center items-center"
@@ -97,7 +96,7 @@ function App() {
 
                     {/* RelicsDisplay: Top Center */}
                     <div className="absolute top-0 left-1/2 transform -translate-x-1/2 p-4">
-                        <RelicsDisplay relics={stats.relics} />
+                        <RelicDisplay relicIds={stats.relics} />
                     </div>
 
                     {/* ConsumablesDisplay: Top Right */}
@@ -108,6 +107,7 @@ function App() {
             )}
             <ShopModal isOpen={isShopOpen} onClose={closeShop} />
         </div>
+        // </TooltipProvider>
     );
 }
 

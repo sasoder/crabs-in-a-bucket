@@ -16,21 +16,35 @@ export function StatsDisplay({ stats }: StatsDisplayProps) {
                     <img
                         src="/assets/sprites/heart.png"
                         alt="heart"
-                        style={{ imageRendering: "pixelated" }}
+                        style={{
+                            imageRendering: "pixelated",
+                            filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.5))",
+                        }}
                         className="w-6 h-6 mr-2"
                     />
-                    {stats.lives}
+                    <span style={{ textShadow: "0px 2px 3px rgba(0,0,0,0.5)" }}>
+                        {stats.lives}
+                    </span>
                 </div>
                 <div className="font-bold flex items-center">
                     <img
                         src="/assets/sprites/coin.png"
                         alt="coin"
-                        style={{ imageRendering: "pixelated" }}
+                        style={{
+                            imageRendering: "pixelated",
+                            filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.5))",
+                        }}
                         className="w-6 h-6 mr-2"
                     />
-                    {stats.coins}
+                    <span style={{ textShadow: "0px 2px 3px rgba(0,0,0,0.5)" }}>
+                        {stats.coins}
+                    </span>
                 </div>
-                <div className="font-bold">Depth: {stats.depth}</div>
+                <div className="font-bold">
+                    <span style={{ textShadow: "0px 2px 3px rgba(0,0,0,0.5)" }}>
+                        Depth: {stats.depth}
+                    </span>
+                </div>
             </div>
         </div>
     );
