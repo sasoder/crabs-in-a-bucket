@@ -250,6 +250,7 @@ template-react-ts
 ├─ LICENSE
 ├─ README.md
 ├─ bun.lock
+├─ components.json
 ├─ index.html
 ├─ log.js
 ├─ package-lock.json
@@ -258,23 +259,86 @@ template-react-ts
 │  ├─ assets
 │  │  ├─ bg.png
 │  │  ├─ logo.png
-│  │  └─ star.png
+│  │  ├─ sprites
+│  │  │  ├─ coin.png
+│  │  │  └─ heart.png
+│  │  ├─ star.png
+│  │  └─ tiles
 │  ├─ favicon.png
 │  └─ style.css
 ├─ screenshot.png
 ├─ src
 │  ├─ App.tsx
+│  ├─ components
+│  │  ├─ ConsumablesDisplay.tsx
+│  │  ├─ RelicsDisplay.tsx
+│  │  ├─ ShopModal.tsx
+│  │  ├─ StatsDisplay.tsx
+│  │  └─ ui
+│  │     ├─ accordion.tsx
+│  │     ├─ alert-dialog.tsx
+│  │     ├─ alert.tsx
+│  │     ├─ aspect-ratio.tsx
+│  │     ├─ avatar.tsx
+│  │     ├─ badge.tsx
+│  │     ├─ breadcrumb.tsx
+│  │     ├─ button.tsx
+│  │     ├─ calendar.tsx
+│  │     ├─ card.tsx
+│  │     ├─ carousel.tsx
+│  │     ├─ chart.tsx
+│  │     ├─ checkbox.tsx
+│  │     ├─ collapsible.tsx
+│  │     ├─ command.tsx
+│  │     ├─ context-menu.tsx
+│  │     ├─ dialog.tsx
+│  │     ├─ drawer.tsx
+│  │     ├─ dropdown-menu.tsx
+│  │     ├─ form.tsx
+│  │     ├─ hover-card.tsx
+│  │     ├─ input-otp.tsx
+│  │     ├─ input.tsx
+│  │     ├─ label.tsx
+│  │     ├─ menubar.tsx
+│  │     ├─ navigation-menu.tsx
+│  │     ├─ pagination.tsx
+│  │     ├─ popover.tsx
+│  │     ├─ progress.tsx
+│  │     ├─ radio-group.tsx
+│  │     ├─ resizable.tsx
+│  │     ├─ scroll-area.tsx
+│  │     ├─ select.tsx
+│  │     ├─ separator.tsx
+│  │     ├─ sheet.tsx
+│  │     ├─ sidebar.tsx
+│  │     ├─ skeleton.tsx
+│  │     ├─ slider.tsx
+│  │     ├─ sonner.tsx
+│  │     ├─ switch.tsx
+│  │     ├─ table.tsx
+│  │     ├─ tabs.tsx
+│  │     ├─ textarea.tsx
+│  │     ├─ toggle-group.tsx
+│  │     ├─ toggle.tsx
+│  │     └─ tooltip.tsx
 │  ├─ game
 │  │  ├─ EventBus.ts
 │  │  ├─ PhaserGame.tsx
 │  │  ├─ Player.ts
+│  │  ├─ data
+│  │  │  └─ Relics.ts
 │  │  ├─ main.ts
 │  │  └─ scenes
 │  │     ├─ Boot.ts
 │  │     ├─ Game.ts
 │  │     ├─ GameOver.ts
+│  │     ├─ MainMenu.ts
 │  │     └─ Preloader.ts
+│  ├─ lib
+│  │  └─ utils.ts
 │  ├─ main.tsx
+│  ├─ styles
+│  │  └─ globals.css
 │  └─ vite-env.d.ts
 ├─ tsconfig.json
 ├─ tsconfig.node.json

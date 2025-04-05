@@ -14,7 +14,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Dig Depth +1",
         description:
             "Your jump dig destroys blocks one layer deeper than normal.",
-        spriteKey: "relic-heart",
+        spriteKey: "heart",
     },
     IMPACT_TREMOR: {
         id: "IMPACT_TREMOR",
@@ -22,7 +22,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Dig Width +1",
         description:
             "Your jump dig destroys blocks two tiles wider than normal (e.g., 1 -> 3 wide).",
-        spriteKey: "relic-coin",
+        spriteKey: "coin",
     },
 };
 

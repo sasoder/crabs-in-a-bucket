@@ -5,8 +5,7 @@ import { EventBus } from "./game/EventBus";
 import { ShopModal } from "./components/ShopModal";
 import { StatsDisplay } from "./components/StatsDisplay";
 import RelicDisplay from "./components/RelicsDisplay";
-import { ConsumablesDisplay } from "./components/ConsumablesDisplay";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import ConsumablesDisplay from "./components/ConsumablesDisplay";
 
 interface PlayerStats {
     lives: number;
@@ -101,7 +100,7 @@ function App() {
 
                     {/* ConsumablesDisplay: Top Right */}
                     <div className="absolute top-0 right-0 p-4">
-                        <ConsumablesDisplay consumables={stats.consumables} />
+                        <ConsumablesDisplay consumableIds={stats.consumables} />
                     </div>
                 </div>
             )}
