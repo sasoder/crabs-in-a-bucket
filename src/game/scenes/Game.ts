@@ -7,7 +7,6 @@ export default class Game extends Phaser.Scene {
     };
     private map?: Phaser.Tilemaps.Tilemap;
     private groundLayer?: Phaser.Tilemaps.TilemapLayer;
-    private tileGraphics?: Phaser.GameObjects.Graphics;
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private TILE_SIZE = 16;
 
@@ -19,11 +18,24 @@ export default class Game extends Phaser.Scene {
         super("Game");
     }
 
-    // No preload needed here if assets are handled in Boot/Preloader
+    preload() {
+        // Create a simple colored tile for our game
+        this.createTileTexture();
+    }
+
+    createTileTexture() {
+        // Create a canvas texture for our tile
+        const graphics = this.make.graphics({ x: 0, y: 0 });
+        graphics.fillStyle(0x3498db, 1); // Blue color for blocks
+        graphics.fillRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+        graphics.lineStyle(1, 0x000000, 1);
+        graphics.strokeRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+        graphics.generateTexture("tile", this.TILE_SIZE, this.TILE_SIZE);
+        graphics.destroy();
+    }
 
     create() {
         this.cursors = this.input.keyboard?.createCursorKeys();
-        this.tileGraphics = this.add.graphics();
 
         this.currentDepth = 0;
         this.maxDepthReached = 0;
@@ -34,61 +46,47 @@ export default class Game extends Phaser.Scene {
         const mapHeight = 200;
         const mapData: number[][] = [];
 
-        // Create basic map data (1 for block, -1 for empty)
+        // Create basic map data (1 for block, 0 for empty)
         for (let y = 0; y < mapHeight; y++) {
             mapData[y] = [];
             for (let x = 0; x < mapWidth; x++) {
-                mapData[y][x] = y < 4 ? -1 : 1;
+                // Create a platform at the top with more terrain
+                if (y < 4) {
+                    mapData[y][x] = 0; // Empty at the very top
+                } else if (y === 4) {
+                    mapData[y][x] = 1; // Solid ground at y=4
+                } else {
+                    // Create some basic terrain pattern with more gaps
+                    mapData[y][x] = Math.random() < 0.8 ? 1 : 0;
+                }
             }
         }
 
-        // Create the map instance (data only)
+        // Create the map instance with data
         this.map = this.make.tilemap({
             data: mapData,
             tileWidth: this.TILE_SIZE,
             tileHeight: this.TILE_SIZE,
         });
 
-        // Create a blank layer for collision detection only
-        // It won't use a tileset image for rendering
-        this.groundLayer =
-            this.map.createBlankLayer(
-                "ground",
-                [], // No tileset needed for blank layer
-                0,
-                0,
-                mapWidth,
-                mapHeight,
-                this.TILE_SIZE,
-                this.TILE_SIZE
-            ) ?? undefined;
+        // Add a tileset to the map
+        const tileset = this.map.addTilesetImage("tile");
+
+        if (!tileset) {
+            console.error("Failed to create tileset");
+            return;
+        }
+
+        // Create a layer with the tileset
+        this.groundLayer = this.map.createLayer(0, tileset, 0, 0) || undefined;
 
         if (!this.groundLayer) {
             console.error("Failed to create ground layer");
             return;
         }
 
-        // Manually add tiles with index 1 to the layer for collision
-        // This populates the collision layer based on the initial map data
-        this.map.forEachTile(
-            (tile) => {
-                if (tile.index === 1) {
-                    this.groundLayer?.putTileAt(tile.index, tile.x, tile.y);
-                }
-            },
-            this,
-            0,
-            0,
-            mapWidth,
-            mapHeight,
-            { isNotEmpty: true } // Optimization: only check non-empty source tiles
-        );
-
-        // Set collision on the tiles with index 1 within the groundLayer
-        this.groundLayer.setCollision(1);
-
-        // Draw the initial visual representation of the tiles based on map data
-        this.drawTiles();
+        // Set collision for tile index 1
+        this.groundLayer.setCollisionByExclusion([0]);
 
         // Set bounds
         this.cameras.main.setBounds(
@@ -117,7 +115,7 @@ export default class Game extends Phaser.Scene {
             spawnY,
             playerWidth,
             playerHeight,
-            0xffffff
+            0xff0000
         );
 
         this.physics.add.existing(playerRect);
@@ -130,7 +128,13 @@ export default class Game extends Phaser.Scene {
 
         // --- Physics ---
         if (this.player && this.groundLayer) {
-            this.physics.add.collider(this.player, this.groundLayer);
+            this.physics.add.collider(
+                this.player,
+                this.groundLayer,
+                undefined,
+                undefined,
+                this
+            );
         } else {
             console.error("Player or groundLayer missing for collision setup");
         }
@@ -150,6 +154,9 @@ export default class Game extends Phaser.Scene {
             depth: this.currentDepth,
         });
 
+        // Enable physics debug to see collision bodies
+        this.physics.world.createDebugGraphic();
+
         // --- Event Listeners ---
         EventBus.on("close-shop", this.resumeGame, this);
         this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -157,45 +164,6 @@ export default class Game extends Phaser.Scene {
         });
 
         EventBus.emit("current-scene-ready", this);
-    }
-
-    // Helper function to draw the visual tiles based on the map data
-    drawTiles() {
-        if (!this.map) {
-            console.error("Cannot draw tiles: Map missing.");
-            return;
-        }
-        const graphics = this.tileGraphics;
-        if (!graphics) {
-            console.error("Cannot draw tiles: Graphics object missing.");
-            return;
-        }
-
-        graphics.clear();
-        graphics.fillStyle(0x888888, 1); // Grey color for blocks
-
-        // Iterate through the base map data to draw rects
-        this.map.forEachTile(
-            (tile) => {
-                // Draw based ONLY on the original map data index
-                if (tile.index === 1) {
-                    const tileX = tile.getLeft();
-                    const tileY = tile.getTop();
-                    graphics.fillRect(
-                        tileX,
-                        tileY,
-                        this.TILE_SIZE,
-                        this.TILE_SIZE
-                    );
-                }
-            },
-            this,
-            0,
-            0,
-            this.map.width,
-            this.map.height,
-            { isNotEmpty: true } // Optimization: only iterate non-empty tiles
-        );
     }
 
     resumeGame() {
@@ -208,7 +176,7 @@ export default class Game extends Phaser.Scene {
             !this.player ||
             !this.player.body ||
             !this.groundLayer ||
-            !this.map // Added map check
+            !this.map
         ) {
             return;
         }
@@ -255,23 +223,17 @@ export default class Game extends Phaser.Scene {
             const digTileY = this.groundLayer.worldToTileY(digWorldY);
 
             if (digTileX !== undefined && digTileY !== undefined) {
-                // Check if there's a collidable tile (index 1) in the groundLayer first
-                const tileInCollisionLayer = this.groundLayer.getTileAt(
+                // Check if there's a collidable tile at that position
+                const tileToRemove = this.groundLayer.getTileAt(
                     digTileX,
                     digTileY
                 );
 
-                if (tileInCollisionLayer && tileInCollisionLayer.index === 1) {
-                    // 1. Remove tile from collision layer
+                if (tileToRemove && tileToRemove.index === 1) {
+                    // Remove the tile
                     this.groundLayer.removeTileAt(digTileX, digTileY);
 
-                    // 2. Update the underlying map data (set to empty -1)
-                    this.map.putTileAt(-1, digTileX, digTileY);
-
-                    // 3. Redraw the visual tiles based on updated map data
-                    this.drawTiles();
-
-                    // 4. Apply jump velocity only if digging was successful
+                    // Apply jump velocity
                     this.player.body.setVelocityY(-250);
                 }
             } else {
