@@ -157,7 +157,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             <div className="texture">
                 <AlertDialogContent
                     className={cn(
-                        "sm:max-w-[450px] p-0 border-none shadow-xl", // Remove default padding and borders
+                        "sm:max-w-[450px] p-0 border-none shadow-none border-radius", // Remove default padding and borders
                         "bg-[#3a2416]" // Dark wood base for outer frame
                     )}
                 >
@@ -175,11 +175,11 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                 </AlertDialogTitle>
                                 <AlertDialogDescription
                                     className={cn(
-                                        "text-xl text-center text-secondary-foreground"
+                                        "text-xl text-center text-secondary-foreground px-12"
                                     )}
                                 >
-                                    You can exchange your coins for tools and
-                                    relics.
+                                    As you make your way deeper, you can
+                                    exchange your coins for tools and relics.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             {/* Relics Section */}
@@ -213,7 +213,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                                         cannotAfford ||
                                                         isPurchased
                                                     }
-                                                    size="xl" // Adjusted size
+                                                    size="xxl" // Adjusted size
                                                 />
                                             );
                                         })
@@ -263,7 +263,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                                         isPurchased ||
                                                         inventoryFull
                                                     }
-                                                    size="xl" // Adjusted size
+                                                    size="xxl" // Adjusted size
                                                 />
                                             );
                                         })
@@ -277,7 +277,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                             <AlertDialogFooter className="flex flex-row justify-between items-center pt-0 sm:justify-between">
                                 {/* Basic button styling, might need custom CSS for exact pixel look */}
                                 <Button
-                                    variant="outline"
+                                    variant="secondary"
                                     onClick={handleReroll}
                                     disabled={!canAffordReroll}
                                     className={cn(
@@ -292,7 +292,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                     />
                                 </Button>
                                 <Button
-                                    variant="outline"
+                                    variant="secondary"
                                     onClick={handleClose}
                                     className={cn(
                                         "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"

@@ -27,7 +27,7 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
             {Array.from({ length: MAX_DISPLAY }).map((_, index) => (
                 <div
                     key={`slot-${index}`}
-                    className="relative w-8 h-8 border border-dashed border-gray-400 rounded"
+                    className="relative w-8 h-8 border border-dashed border-secondary/80 rounded"
                     title={
                         displayItems[index]
                             ? displayItems[index].name
@@ -40,7 +40,7 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
                             item={displayItems[index]}
                             itemTypeOverride="consumable"
                             size="md"
-                            className="absolute inset-0" // Position over the placeholder
+                            className="absolute inset-[-2px]" // Position over the placeholder
                         />
                     )}
                 </div>

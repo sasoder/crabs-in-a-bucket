@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { EventBus } from "../EventBus"; // Import EventBus if you need scene-ready event
 
 export default class Preloader extends Phaser.Scene {
     constructor() {
@@ -64,15 +63,16 @@ export default class Preloader extends Phaser.Scene {
 
         // --- Load your actual game assets here ---
         // Examples (replace with your actual paths and keys):
-        this.load.image("background", "assets/bg.png"); // If you have a static background
-        this.load.image("block", "assets/tiles/block.png");
-        this.load.image("coin", "assets/items/coin.png");
+        this.load.image("dirt_tile", "assets/tiles/dirt.png");
+        this.load.image("stone_tile", "assets/tiles/stone.png");
+        this.load.image("gold_tile", "assets/tiles/gold.png");
+        this.load.image("coin", "assets/ui/coin.png");
         this.load.image("heart", "assets/ui/heart.png");
-        this.load.spritesheet("player", "assets/sprites/player.png", {
+        this.load.spritesheet("player", "assets/entities/player.png", {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,
         });
-        this.load.spritesheet("enemy", "assets/sprites/enemy.png", {
+        this.load.spritesheet("enemy", "assets/entities/enemy.png", {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,
         });
@@ -80,23 +80,20 @@ export default class Preloader extends Phaser.Scene {
         // this.load.audio('coinSound', 'assets/audio/coin.wav');
         // ... load all other assets needed by the Game scene ...
 
-        // Load relic images (if not already handled by React/CSS)
-        this.load.image(
-            "relic_steel_toed_boots",
-            "assets/relics/steel_toed_boots.png"
-        );
-        this.load.image(
-            "relic_impact_tremor",
-            "assets/relics/impact_tremor.png"
-        );
+        // // Load relic images (if not already handled by React/CSS)
+        // this.load.image(
+        //     "relic_steel_toed_boots",
+        //     "assets/relics/steel_toed_boots.png"
+        // );
+        // this.load.image(
+        //     "relic_impact_tremor",
+        //     "assets/relics/impact_tremor.png"
+        // );
         // ... add all other relic images ...
 
         // Load consumable images
-        this.load.image("consumable_bomb", "assets/consumables/bomb.png");
-        this.load.image(
-            "consumable_drill_charge",
-            "assets/consumables/drill_charge.png"
-        );
+        this.load.image("consumable_tnt", "assets/consumables/tnt.png");
+
         // ... add all other consumable images ...
     }
 

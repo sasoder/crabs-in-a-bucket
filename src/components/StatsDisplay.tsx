@@ -16,7 +16,7 @@ export function StatsDisplay({ stats }: StatsDisplayProps) {
             <div className="flex flex-col space-y-1">
                 <div className=" flex items-center">
                     <img
-                        src="/assets/sprites/heart.png"
+                        src="/assets/ui/heart.png"
                         alt="heart"
                         style={{
                             imageRendering: "pixelated",

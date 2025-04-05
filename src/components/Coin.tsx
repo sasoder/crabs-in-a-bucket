@@ -20,7 +20,7 @@ export default function Coin({
     return (
         <div className="flex items-center gap-1">
             <img
-                src="/assets/sprites/coin.png"
+                src="/assets/ui/coin.png"
                 alt="coin"
                 style={{
                     imageRendering: "pixelated",

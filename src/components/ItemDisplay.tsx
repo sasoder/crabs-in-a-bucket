@@ -25,7 +25,7 @@ interface ItemDisplayProps {
     onPurchase?: (item: Relic | Consumable) => void; // Callback for shop purchase clicks
     showPrice?: boolean; // Flag to display price (for shop)
     disabled?: boolean; // Flag to disable interaction (e.g., can't afford)
-    size?: "sm" | "md" | "lg" | "xl"; // Optional size variants
+    size?: "sm" | "md" | "lg" | "xl" | "xxl"; // Optional size variants
     className?: string; // Allow custom styling
     background?: boolean; // Flag to display background of button
 }
@@ -63,6 +63,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
         md: "w-8 h-8",
         lg: "w-10 h-10",
         xl: "w-12 h-12",
+        xxl: "w-16 h-16",
     };
 
     const cost = !isRelic(item) ? (item as Consumable).cost : undefined;
@@ -89,11 +90,6 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                         )}
                         onClick={onPurchase ? handlePurchaseClick : undefined}
                         disabled={disabled}
-                        aria-label={`View details for ${item.name}${
-                            showPrice && cost !== undefined
-                                ? ` (Cost: ${cost})`
-                                : ""
-                        }`}
                     >
                         <img
                             src={assetPath}

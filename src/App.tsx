@@ -7,6 +7,7 @@ import { StatsDisplay } from "./components/StatsDisplay";
 import RelicDisplay from "./components/RelicsDisplay";
 import ConsumablesDisplay from "./components/ConsumablesDisplay";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "./lib/utils";
 
 interface PlayerStats {
     lives: number;
@@ -78,14 +79,20 @@ function App() {
                 {!gameStarted ? (
                     // Show Start Button if game hasn't started
                     <div className="text-center">
-                        <h1 className="text-8xl mb-8 text-white">Just Dig</h1>
+                        <h1 className="text-8xl mb-4 text-white">Just Dig</h1>
                         <Button
+                            variant="secondary"
                             onClick={startGame}
-                            size="lg"
-                            className="text-xl"
+                            className={cn(
+                                "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"
+                            )}
                         >
-                            Start Game
+                            Dig
                         </Button>
+                        <p className="text-white/50 mt-8">
+                            Controls: arrow keys move, space to dig/jump. A to
+                            use items.
+                        </p>
                     </div>
                 ) : (
                     // Add a relative container around the game and its UI
