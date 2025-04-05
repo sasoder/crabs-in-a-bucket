@@ -15,12 +15,18 @@ import type { Consumable } from "@/game/data/Consumables";
 import { CONSUMABLES as AllConsumablesData } from "@/game/data/Consumables";
 import ItemDisplay from "./ItemDisplay"; // Import the reusable component
 import { Separator } from "@/components/ui/separator"; // For visual separation
+import { cn } from "@/lib/utils";
+import Coin from "./Coin";
 
 interface ShopModalProps {
     isOpen: boolean;
     onClose: () => void;
     playerCoins: number; // Receive player's current coins
 }
+
+// Basic wood texture simulation using gradients and color stops
+const woodFrameStyle =
+    "border-4 border-t-[#a0704f] border-l-[#a0704f] border-b-[#5a3d2b] border-r-[#5a3d2b] p-1"; // Simulate bevel
 
 export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
     const [relics, setRelics] = useState<Relic[]>([]);
@@ -120,8 +126,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
 
     const handlePurchase = (item: Relic | Consumable) => {
         const itemType = "cost" in item ? "consumable" : "relic";
-        // FIXME: Needs actual relic cost from Relics.ts
-        const cost = "cost" in item ? item.cost : 100;
+        const cost = getItemCost(item);
         if (playerCoins >= cost && !purchasedItemIds.has(item.id)) {
             console.log(
                 `ShopModal: Emitting purchase-item for ${itemType} ${item.id}`
@@ -140,7 +145,8 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
 
     const getItemCost = (item: Relic | Consumable): number => {
         // FIXME: Relics need a cost property in Relics.ts! Defaulting to 100 for now.
-        return "cost" in item ? item.cost : 100;
+        // Use a more reasonable default like 10 or check the image? Image has 10 coins.
+        return "cost" in item ? item.cost : 10; // Assuming relic cost is 10 based on image
     };
 
     return (
@@ -148,124 +154,157 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             open={isOpen}
             onOpenChange={(open: boolean) => !open && handleClose()}
         >
-            <AlertDialogContent className="sm:max-w-[525px] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border-gray-300 dark:border-gray-700">
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100 text-center">
-                        You found a chest!
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-center text-gray-600 dark:text-gray-400">
-                        You can exchange your coins for tools and relics.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <Separator className="my-4 bg-gray-300 dark:bg-gray-700" />
-
-                {/* Relics Section */}
-                <div className="mb-4">
-                    <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                        Relics
-                    </h3>
-                    <div className="flex justify-around gap-4 py-2">
-                        {relics.length > 0 ? (
-                            relics.map((relic) => {
-                                // --- DEBUG LOG ---
-                                console.log(
-                                    "ShopModal: Rendering Relic ItemDisplay for:",
-                                    relic.id
-                                );
-                                const cost = getItemCost(relic);
-                                const cannotAfford = playerCoins < cost;
-                                const isPurchased = purchasedItemIds.has(
-                                    relic.id
-                                );
-                                return (
-                                    <ItemDisplay
-                                        key={relic.id}
-                                        item={relic}
-                                        itemTypeOverride="relic"
-                                        onPurchase={() => handlePurchase(relic)}
-                                        showPrice={true}
-                                        disabled={cannotAfford || isPurchased}
-                                        size="lg"
+            <div className="texture">
+                <AlertDialogContent
+                    className={cn(
+                        "sm:max-w-[450px] p-0 border-none shadow-xl", // Remove default padding and borders
+                        "bg-[#3a2416]" // Dark wood base for outer frame
+                    )}
+                >
+                    <div className={cn(woodFrameStyle)}>
+                        {" "}
+                        {/* Outer frame */}
+                        <div className={cn("p-4")}>
+                            {" "}
+                            {/* Inner panel */}
+                            <AlertDialogHeader className="mb-4">
+                                <AlertDialogTitle
+                                    className={cn("text-4xl text-center")}
+                                >
+                                    You found a chest!
+                                </AlertDialogTitle>
+                                <AlertDialogDescription
+                                    className={cn(
+                                        "text-xl text-center text-secondary-foreground"
+                                    )}
+                                >
+                                    You can exchange your coins for tools and
+                                    relics.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            {/* Relics Section */}
+                            <div className={cn("p-4 my-2")}>
+                                <h3
+                                    className={cn(
+                                        "text-3xl mb-3 text-amber-300"
+                                    )}
+                                >
+                                    Relics
+                                </h3>
+                                <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
+                                    {relics.length > 0 ? (
+                                        relics.map((relic) => {
+                                            const cost = getItemCost(relic);
+                                            const cannotAfford =
+                                                playerCoins < cost;
+                                            const isPurchased =
+                                                purchasedItemIds.has(relic.id);
+                                            return (
+                                                <ItemDisplay
+                                                    key={relic.id}
+                                                    item={relic}
+                                                    itemTypeOverride="relic"
+                                                    onPurchase={() =>
+                                                        handlePurchase(relic)
+                                                    }
+                                                    background={false}
+                                                    showPrice={true}
+                                                    disabled={
+                                                        cannotAfford ||
+                                                        isPurchased
+                                                    }
+                                                    size="xl" // Adjusted size
+                                                />
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-sm opacity-80">
+                                            No relics available.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Consumables Section */}
+                            <div className={cn("p-4 my-2")}>
+                                <h3
+                                    className={cn(
+                                        "text-3xl mb-3 text-amber-300"
+                                    )}
+                                >
+                                    Consumables
+                                </h3>
+                                <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
+                                    {consumables.length > 0 ? (
+                                        consumables.map((consumable) => {
+                                            const cost =
+                                                getItemCost(consumable);
+                                            const cannotAfford =
+                                                playerCoins < cost;
+                                            const isPurchased =
+                                                purchasedItemIds.has(
+                                                    consumable.id
+                                                );
+                                            // TODO: Check if inventory is full (needs info from Game.ts)
+                                            const inventoryFull = false; // Placeholder
+                                            return (
+                                                <ItemDisplay
+                                                    key={consumable.id}
+                                                    item={consumable}
+                                                    itemTypeOverride="consumable"
+                                                    onPurchase={() =>
+                                                        handlePurchase(
+                                                            consumable
+                                                        )
+                                                    }
+                                                    background={false}
+                                                    showPrice={true}
+                                                    disabled={
+                                                        cannotAfford ||
+                                                        isPurchased ||
+                                                        inventoryFull
+                                                    }
+                                                    size="xl" // Adjusted size
+                                                />
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-sm opacity-80">
+                                            No consumables available.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <AlertDialogFooter className="flex flex-row justify-between items-center pt-0 sm:justify-between">
+                                {/* Basic button styling, might need custom CSS for exact pixel look */}
+                                <Button
+                                    variant="outline"
+                                    onClick={handleReroll}
+                                    disabled={!canAffordReroll}
+                                    className={cn(
+                                        "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
+                                    )}
+                                >
+                                    Reroll{" "}
+                                    <Coin
+                                        size="sm"
+                                        cost={rerollCost}
+                                        textShadow={false}
                                     />
-                                );
-                            })
-                        ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-sm">
-                                No relics available.
-                            </p>
-                        )}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleClose}
+                                    className={cn(
+                                        "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"
+                                    )}
+                                >
+                                    Keep Digging
+                                </Button>
+                            </AlertDialogFooter>
+                        </div>
                     </div>
-                </div>
-
-                <Separator className="my-4 bg-gray-300 dark:bg-gray-700" />
-
-                {/* Consumables Section */}
-                <div className="mb-4">
-                    <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                        Consumables
-                    </h3>
-                    <div className="flex justify-around gap-4 py-2">
-                        {consumables.length > 0 ? (
-                            consumables.map((consumable) => {
-                                // --- DEBUG LOG ---
-                                console.log(
-                                    "ShopModal: Rendering Consumable ItemDisplay for:",
-                                    consumable.id
-                                );
-                                const cost = getItemCost(consumable);
-                                const cannotAfford = playerCoins < cost;
-                                const isPurchased = purchasedItemIds.has(
-                                    consumable.id
-                                );
-                                // TODO: Check if inventory is full (needs info from Game.ts)
-                                const inventoryFull = false; // Placeholder
-                                return (
-                                    <ItemDisplay
-                                        key={consumable.id}
-                                        item={consumable}
-                                        itemTypeOverride="consumable"
-                                        onPurchase={() =>
-                                            handlePurchase(consumable)
-                                        }
-                                        showPrice={true}
-                                        disabled={
-                                            cannotAfford ||
-                                            isPurchased ||
-                                            inventoryFull
-                                        }
-                                        size="lg"
-                                    />
-                                );
-                            })
-                        ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-sm">
-                                No consumables available.
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                <Separator className="my-4 bg-gray-300 dark:bg-gray-700" />
-
-                <AlertDialogFooter className="flex flex-row justify-between items-center pt-4">
-                    <Button
-                        variant="outline"
-                        onClick={handleReroll}
-                        disabled={!canAffordReroll}
-                        className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:border-yellow-400 dark:text-yellow-300 dark:hover:bg-yellow-900/50 disabled:opacity-50"
-                    >
-                        Reroll ({rerollCost} Coins)
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="text-black"
-                        onClick={handleClose}
-                    >
-                        Keep Digging
-                    </Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
+                </AlertDialogContent>
+            </div>
         </AlertDialog>
     );
 }

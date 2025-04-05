@@ -25,7 +25,7 @@ const RelicDisplay: React.FC<RelicDisplayProps> = ({ relicIds }) => {
                     key={relic.id}
                     item={relic}
                     itemTypeOverride="relic" // Specify the type
-                    size="sm" // Use smaller size for the HUD display
+                    size="lg" // Use smaller size for the HUD display
                 />
             ))}
         </div>

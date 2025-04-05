@@ -78,10 +78,12 @@ function App() {
                 {!gameStarted ? (
                     // Show Start Button if game hasn't started
                     <div className="text-center">
-                        <h1 className="text-4xl font-bold mb-8 text-white">
-                            Just Dig
-                        </h1>
-                        <Button onClick={startGame} size="lg">
+                        <h1 className="text-8xl mb-8 text-white">Just Dig</h1>
+                        <Button
+                            onClick={startGame}
+                            size="lg"
+                            className="text-xl"
+                        >
                             Start Game
                         </Button>
                     </div>

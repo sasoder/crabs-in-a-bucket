@@ -117,8 +117,8 @@
     --font-weight-normal: 700;
     --font-weight-medium: 700;
     --font-weight-semibold: 700;
-    --font-sans: Nunito, sans-serif;
-    --font-serif: PT Serif, serif;
+    --font-sans: "Jersey 10", sans-serif;
+    --font-serif: "Jersey 10", serif;
     --shadow-xs: 0 2px 0 0 var(--border);
     --shadow-sm: 0 2px 0 0 var(--border);
     --shadow-md: 0 2px 0 0 var(--border);
@@ -136,44 +136,45 @@
     }
     body {
         @apply bg-background text-foreground;
-    font-weight: var(--font-weight-bold);
+        font-family: "Jersey 10";
     }
-  .border {
-    border-width: 2px !important;
+    .border {
+        border-width: 2px !important;
     }
-  .border-l {
-    border-left-width: 2px !important;
+    .border-l {
+        border-left-width: 2px !important;
     }
-  .border-r {
-    border-right-width: 2px !important;
+    .border-r {
+        border-right-width: 2px !important;
     }
-  .border-t {
-    border-top-width: 2px !important;
+    .border-t {
+        border-top-width: 2px !important;
     }
-  .border-b {
-    border-bottom-width: 2px !important;
+    .border-b {
+        border-bottom-width: 2px !important;
     }
-  .shadow-primary {
-    box-shadow: 0 2px 0 0 var(--primary-border);
+    .shadow-primary {
+        box-shadow: 0 2px 0 0 var(--primary-border);
     }
-  .shadow-destructive {
-    box-shadow: 0 2px 0 0 var(--destructive);
+    .shadow-destructive {
+        box-shadow: 0 2px 0 0 var(--destructive);
     }
-  .shadow-destructive-border {
-    box-shadow: 0 2px 0 0 var(--destructive-border);
+    .shadow-destructive-border {
+        box-shadow: 0 2px 0 0 var(--destructive-border);
     }
-  .texture {
-    background-image: url(https://matsu-theme.vercel.app/texture.jpg);
-    background-size: 100% 100%;
-    background-repeat: repeat;
-    opacity: 0.12;
-    mix-blend-mode: multiply;
-    z-index: 100;
-    isolation: isolate;
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100dvh;
-    pointer-events: none;
+    .texture {
+        background-image: url(https://matsu-theme.vercel.app/texture.jpg);
+        background-size: 100% 100%;
+        background-repeat: repeat;
+        opacity: 0.2;
+        mix-blend-mode: overlay;
+        z-index: 100;
+        isolation: isolate;
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100dvh;
+        pointer-events: none;
     }
 }
+

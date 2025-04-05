@@ -23,30 +23,28 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
 
     return (
         <div className="flex space-x-1 items-center">
-            {displayItems.map(
-                (
-                    consumable,
-                    index // Added index for key uniqueness if IDs aren't unique in the array
-                ) => (
-                    <ItemDisplay
-                        key={`${consumable.id}-${index}`} // Ensure key is unique if player can have multiple of same ID
-                        item={consumable}
-                        itemTypeOverride="consumable" // Specify the type
-                        size="sm" // Use smaller size for the HUD display
-                        // TODO: Add indication of which key activates it (1, 2, 3)
-                    />
-                )
-            )}
-            {/* Optionally show placeholder slots if less than max */}
-            {Array.from({ length: MAX_DISPLAY - displayItems.length }).map(
-                (_, index) => (
-                    <div
-                        key={`placeholder-${index}`}
-                        className="w-6 h-6 border border-dashed border-gray-400 rounded"
-                        title="Empty consumable slot"
-                    ></div>
-                )
-            )}
+            {/* Always show 3 slots */}
+            {Array.from({ length: MAX_DISPLAY }).map((_, index) => (
+                <div
+                    key={`slot-${index}`}
+                    className="relative w-8 h-8 border border-dashed border-gray-400 rounded"
+                    title={
+                        displayItems[index]
+                            ? displayItems[index].name
+                            : "Empty consumable slot"
+                    }
+                >
+                    {/* Show consumable on top of the slot if it exists */}
+                    {displayItems[index] && (
+                        <ItemDisplay
+                            item={displayItems[index]}
+                            itemTypeOverride="consumable"
+                            size="md"
+                            className="absolute inset-0" // Position over the placeholder
+                        />
+                    )}
+                </div>
+            ))}
         </div>
     );
 };
