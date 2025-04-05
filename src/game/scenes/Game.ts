@@ -1,14 +1,14 @@
 import Phaser from "phaser";
 import { EventBus } from "../EventBus";
+import { Player } from "../Player";
 
 export default class Game extends Phaser.Scene {
-    private player?: Phaser.GameObjects.Rectangle & {
-        body: Phaser.Physics.Arcade.Body;
-    };
+    private player?: Player;
     private map?: Phaser.Tilemaps.Tilemap;
     private groundLayer?: Phaser.Tilemaps.TilemapLayer;
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private TILE_SIZE = 16;
+    private crackTexture: string = "tile-cracked";
 
     private currentDepth = 0;
     private maxDepthReached = 0;
@@ -21,16 +21,81 @@ export default class Game extends Phaser.Scene {
     preload() {
         // Create a simple colored tile for our game
         this.createTileTexture();
+        this.createCrackTexture();
+
+        // Make sure particle manager is initialized
+        this.load.image("tile", undefined);
     }
 
     createTileTexture() {
         // Create a canvas texture for our tile
         const graphics = this.make.graphics({ x: 0, y: 0 });
-        graphics.fillStyle(0x3498db, 1); // Blue color for blocks
+
+        // Change tile color to something more visible (brown/dirt color)
+        graphics.fillStyle(0xa67c52, 1); // Dirt/ground color
         graphics.fillRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
-        graphics.lineStyle(1, 0x000000, 1);
+
+        // Add a more visible border
+        graphics.lineStyle(2, 0x000000, 1);
         graphics.strokeRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+
+        // Add some texture detail to make it look more like dirt/ground
+        graphics.lineStyle(1, 0x8e6343, 0.5);
+        graphics.lineBetween(
+            0,
+            this.TILE_SIZE / 3,
+            this.TILE_SIZE,
+            this.TILE_SIZE / 3
+        );
+        graphics.lineBetween(
+            0,
+            (this.TILE_SIZE * 2) / 3,
+            this.TILE_SIZE,
+            (this.TILE_SIZE * 2) / 3
+        );
+
         graphics.generateTexture("tile", this.TILE_SIZE, this.TILE_SIZE);
+        graphics.destroy();
+    }
+
+    createCrackTexture() {
+        // Create a cracked tile texture
+        const graphics = this.make.graphics({ x: 0, y: 0 });
+
+        // Same base as the tile
+        graphics.fillStyle(0xa67c52, 1);
+        graphics.fillRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+
+        // Add crack patterns
+        graphics.lineStyle(2, 0x000000, 1);
+        graphics.strokeRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+
+        // Draw cracks
+        graphics.lineStyle(2, 0x000000, 1);
+        graphics.lineBetween(
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE,
+            this.TILE_SIZE / 4
+        );
+        graphics.lineBetween(
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 4,
+            this.TILE_SIZE
+        );
+        graphics.lineBetween(
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE,
+            (this.TILE_SIZE * 3) / 4
+        );
+
+        graphics.generateTexture(
+            this.crackTexture,
+            this.TILE_SIZE,
+            this.TILE_SIZE
+        );
         graphics.destroy();
     }
 
@@ -40,6 +105,12 @@ export default class Game extends Phaser.Scene {
         this.currentDepth = 0;
         this.maxDepthReached = 0;
         this.nextShopDepthThreshold = 10;
+
+        // Set a visible background color to contrast with the tiles
+        this.cameras.main.setBackgroundColor(0x87ceeb); // Sky blue background
+
+        // Create a background grid to show tile positions
+        this.createBackgroundGrid();
 
         // --- Tilemap Setup ---
         const mapWidth = 30;
@@ -105,26 +176,10 @@ export default class Game extends Phaser.Scene {
         // --- Player Setup ---
         const mapTopTileY = 4;
         const firstTileYPx = mapTopTileY * this.TILE_SIZE;
-        const playerWidth = this.TILE_SIZE;
-        const playerHeight = this.TILE_SIZE * 1.5;
         const spawnX = this.map.widthInPixels / 2;
-        const spawnY = firstTileYPx - playerHeight / 2;
+        const spawnY = firstTileYPx - this.TILE_SIZE / 2;
 
-        const playerRect = this.add.rectangle(
-            spawnX,
-            spawnY,
-            playerWidth,
-            playerHeight,
-            0xff0000
-        );
-
-        this.physics.add.existing(playerRect);
-        this.player = playerRect as Phaser.GameObjects.Rectangle & {
-            body: Phaser.Physics.Arcade.Body;
-        };
-
-        this.player.body.setBounce(0.1);
-        this.player.body.setCollideWorldBounds(true);
+        this.player = new Player(this, spawnX, spawnY);
 
         // --- Physics ---
         if (this.player && this.groundLayer) {
@@ -154,16 +209,57 @@ export default class Game extends Phaser.Scene {
             depth: this.currentDepth,
         });
 
-        // Enable physics debug to see collision bodies
+        // Enable physics debug AFTER player/world setup
         this.physics.world.createDebugGraphic();
+        if (this.physics.world.debugGraphic) {
+            this.physics.world.debugGraphic.visible = true;
+        }
 
         // --- Event Listeners ---
         EventBus.on("close-shop", this.resumeGame, this);
+        EventBus.on(
+            "start-game",
+            () => {
+                // This is just a placeholder since we're already in the Game scene
+                // We can use this to reset the game if needed
+                console.log("Game started via start-game event");
+            },
+            this
+        );
         this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
             EventBus.off("close-shop", this.resumeGame, this);
+            EventBus.off("start-game");
         });
 
         EventBus.emit("current-scene-ready", this);
+    }
+
+    createBackgroundGrid() {
+        const mapWidth = 30;
+        const mapHeight = 200;
+
+        const graphics = this.add.graphics();
+        graphics.lineStyle(1, 0xdddddd, 0.3);
+
+        // Draw vertical lines
+        for (let x = 0; x <= mapWidth; x++) {
+            graphics.lineBetween(
+                x * this.TILE_SIZE,
+                0,
+                x * this.TILE_SIZE,
+                mapHeight * this.TILE_SIZE
+            );
+        }
+
+        // Draw horizontal lines
+        for (let y = 0; y <= mapHeight; y++) {
+            graphics.lineBetween(
+                0,
+                y * this.TILE_SIZE,
+                mapWidth * this.TILE_SIZE,
+                y * this.TILE_SIZE
+            );
+        }
     }
 
     resumeGame() {
@@ -203,46 +299,9 @@ export default class Game extends Phaser.Scene {
             }
         }
 
-        // --- Movement & Digging ---
-        const speed = 150;
-        const isTouchingGround = this.player.body.blocked.down;
-
-        // Horizontal Movement
-        if (this.cursors.left.isDown) {
-            this.player.body.setVelocityX(-speed);
-        } else if (this.cursors.right.isDown) {
-            this.player.body.setVelocityX(speed);
-        } else {
-            this.player.body.setVelocityX(0);
-        }
-
-        // Jumping and Digging
-        if (this.cursors.space.isDown && isTouchingGround) {
-            const digWorldY = this.player.y + this.player.height / 2 + 1; // Slightly below player feet
-            const digTileX = this.groundLayer.worldToTileX(this.player.x);
-            const digTileY = this.groundLayer.worldToTileY(digWorldY);
-
-            if (digTileX !== undefined && digTileY !== undefined) {
-                // Check if there's a collidable tile at that position
-                const tileToRemove = this.groundLayer.getTileAt(
-                    digTileX,
-                    digTileY
-                );
-
-                if (tileToRemove && tileToRemove.index === 1) {
-                    // Remove the tile
-                    this.groundLayer.removeTileAt(digTileX, digTileY);
-
-                    // Apply jump velocity
-                    this.player.body.setVelocityY(-250);
-                }
-            } else {
-                // If no tile to dig, still allow jumping
-                this.player.body.setVelocityY(-250);
-            }
-        } else if (this.cursors.space.isDown && !isTouchingGround) {
-            // Optional: Allow jump input buffering or mid-air jump later?
-            // For now, do nothing if space pressed mid-air.
+        // Update player logic (handles its own movement now)
+        if (this.player) {
+            this.player.update();
         }
     }
 }

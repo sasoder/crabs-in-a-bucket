@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { Boot } from "./scenes/Boot";
 import Preloader from "./scenes/Preloader";
-import { MainMenu } from "./scenes/MainMenu";
 import Game from "./scenes/Game";
 import { GameOver } from "./scenes/GameOver";
 
@@ -22,7 +21,7 @@ function launch(containerId: string): Phaser.Game {
             pixelArt: true,
             antialias: false,
         },
-        scene: [Boot, Preloader, MainMenu, Game, GameOver],
+        scene: [Boot, Preloader, Game, GameOver],
     };
 
     return new Phaser.Game(config);

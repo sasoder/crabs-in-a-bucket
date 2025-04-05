@@ -8,10 +8,10 @@ This is a Phaser 3 project template that uses the React framework and Vite for b
 
 This template has been updated for:
 
-- [Phaser 3.88.2](https://github.com/phaserjs/phaser)
-- [React 18.2.0](https://github.com/facebook/react)
-- [Vite 5.3.1](https://github.com/vitejs/vite)
-- [TypeScript 5.2.2](https://github.com/microsoft/TypeScript)
+-   [Phaser 3.88.2](https://github.com/phaserjs/phaser)
+-   [React 18.2.0](https://github.com/facebook/react)
+-   [Vite 5.3.1](https://github.com/vitejs/vite)
+-   [TypeScript 5.2.2](https://github.com/microsoft/TypeScript)
 
 ![screenshot](screenshot.png)
 
@@ -21,12 +21,12 @@ This template has been updated for:
 
 ## Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm install` | Install project dependencies |
-| `npm run dev` | Launch a development web server |
-| `npm run build` | Create a production build in the `dist` folder |
-| `npm run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
+| Command               | Description                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `npm install`         | Install project dependencies                                                                             |
+| `npm run dev`         | Launch a development web server                                                                          |
+| `npm run build`       | Create a production build in the `dist` folder                                                           |
+| `npm run dev-nolog`   | Launch a development web server without sending anonymous data (see "About log.js" below)                |
 | `npm run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
 
 ## Writing Code
@@ -41,18 +41,18 @@ Once the server is running you can edit any of the files in the `src` folder. Vi
 
 We have provided a default project structure to get you started. This is as follows:
 
-- `index.html` - A basic HTML page to contain the game.
-- `src` - Contains the React client source code.
-- `src/main.tsx` - The main **React** entry point. This bootstraps the React application.
-- `src/vite-env.d.ts` - Global TypeScript declarations, provide types information.
-- `src/App.tsx` - The main React component.
-- `src/game/PhaserGame.tsx` - The React component that initializes the Phaser Game and serve like a bridge between React and Phaser.
-- `src/game/EventBus.ts` - A simple event bus to communicate between React and Phaser.
-- `src/game` - Contains the game source code.
-- `src/game/main.tsx` - The main **game** entry point. This contains the game configuration and start the game.
-- `src/game/scenes/` - The Phaser Scenes are in this folder.
-- `public/style.css` - Some simple CSS rules to help with page layout.
-- `public/assets` - Contains the static assets used by the game.
+-   `index.html` - A basic HTML page to contain the game.
+-   `src` - Contains the React client source code.
+-   `src/main.tsx` - The main **React** entry point. This bootstraps the React application.
+-   `src/vite-env.d.ts` - Global TypeScript declarations, provide types information.
+-   `src/App.tsx` - The main React component.
+-   `src/game/PhaserGame.tsx` - The React component that initializes the Phaser Game and serve like a bridge between React and Phaser.
+-   `src/game/EventBus.ts` - A simple event bus to communicate between React and Phaser.
+-   `src/game` - Contains the game source code.
+-   `src/game/main.tsx` - The main **game** entry point. This contains the game configuration and start the game.
+-   `src/game/scenes/` - The Phaser Scenes are in this folder.
+-   `public/style.css` - Some simple CSS rules to help with page layout.
+-   `public/assets` - Contains the static assets used by the game.
 
 ## React Bridge
 
@@ -62,14 +62,14 @@ To communicate between React and Phaser, you can use the **EventBus.js** file. T
 
 ```js
 // In React
-import { EventBus } from './EventBus';
+import { EventBus } from "./EventBus";
 
 // Emit an event
-EventBus.emit('event-name', data);
+EventBus.emit("event-name", data);
 
 // In Phaser
 // Listen for an event
-EventBus.on('event-name', (data) => {
+EventBus.on("event-name", (data) => {
     // Do something with the data
 });
 ```
@@ -86,21 +86,17 @@ You can get the current Phaser Scene from the component event `"current-active-s
 
 **Important**: When you add a new Scene to your game, make sure you expose to React by emitting the `"current-scene-ready"` event via the `EventBus`, like this:
 
-
 ```ts
-class MyScene extends Phaser.Scene
-{
-    constructor ()
-    {
-        super('MyScene');
+class MyScene extends Phaser.Scene {
+    constructor() {
+        super("MyScene");
     }
 
-    create ()
-    {
+    create() {
         // Your Game Objects and logic here
 
         // At the end of create method:
-        EventBus.emit('current-scene-ready', this);
+        EventBus.emit("current-scene-ready", this);
     }
 }
 ```
@@ -121,7 +117,7 @@ const ReactComponent = () => {
     const phaserRef = useRef<IRefPhaserGame>(); // you can access to this ref from phaserRef.current
 
     const onCurrentActiveScene = (scene: Phaser.Scene) => {
-    
+
         // This is invoked
 
     }
@@ -148,21 +144,21 @@ Vite supports loading assets via JavaScript module `import` statements.
 This template provides support for both embedding assets and also loading them from a static folder. To embed an asset, you can import it at the top of the JavaScript file you are using it in:
 
 ```js
-import logoImg from './assets/logo.png'
+import logoImg from "./assets/logo.png";
 ```
 
 To load static files such as audio files, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
 
 ```js
-preload ()
+preload();
 {
     //  This is an example of an imported bundled image.
     //  Remember to import it at the top of this file
-    this.load.image('logo', logoImg);
+    this.load.image("logo", logoImg);
 
     //  This is an example of loading a static image
     //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
+    this.load.image("background", "assets/bg.png");
 }
 ```
 
@@ -172,7 +168,7 @@ When you issue the `npm run build` command, all static assets are automatically 
 
 After you run the `npm run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
 
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
+In order to deploy your game, you will need to upload _all_ of the contents of the `dist` folder to a public facing web server.
 
 ## Customizing the Template
 
@@ -277,7 +273,6 @@ template-react-ts
 │  │     ├─ Boot.ts
 │  │     ├─ Game.ts
 │  │     ├─ GameOver.ts
-│  │     ├─ MainMenu.ts
 │  │     └─ Preloader.ts
 │  ├─ main.tsx
 │  └─ vite-env.d.ts

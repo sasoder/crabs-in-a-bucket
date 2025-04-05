@@ -10,8 +10,8 @@ export default class Preloader extends Phaser.Scene {
     }
 
     create() {
-        // Start the main menu or game scene directly
-        this.scene.start("MainMenu");
+        // Start the game scene directly
+        this.scene.start("Game");
     }
 }
 
