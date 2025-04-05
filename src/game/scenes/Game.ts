@@ -203,10 +203,12 @@ export default class Game extends Phaser.Scene {
         this.registry.set("coins", 0);
         this.registry.set("relics", []);
         this.registry.set("consumables", []);
-        EventBus.emit("ui-update-stats", {
+        EventBus.emit("update-stats", {
             lives: this.registry.get("lives"),
             coins: this.registry.get("coins"),
             depth: this.currentDepth,
+            relics: this.registry.get("relics"),
+            consumables: this.registry.get("consumables"),
         });
 
         // Enable physics debug AFTER player/world setup
@@ -290,7 +292,13 @@ export default class Game extends Phaser.Scene {
         if (calculatedDepth > this.maxDepthReached) {
             this.maxDepthReached = calculatedDepth;
             this.currentDepth = this.maxDepthReached;
-            EventBus.emit("ui-update-stats", { depth: this.currentDepth });
+            EventBus.emit("update-stats", {
+                lives: this.registry.get("lives"),
+                coins: this.registry.get("coins"),
+                depth: this.currentDepth,
+                relics: this.registry.get("relics"),
+                consumables: this.registry.get("consumables"),
+            });
 
             // --- Shop Trigger Check ---
             if (this.currentDepth >= this.nextShopDepthThreshold) {

@@ -27,6 +27,8 @@
         "build-nolog": "vite build --config vite/config.prod.mjs"
     },
     "dependencies": {
+        "@radix-ui/react-alert-dialog": "^1.1.6",
+        "@radix-ui/react-dialog": "^1.1.6",
         "@radix-ui/react-slot": "^1.1.2",
         "@tailwindcss/vite": "^4.1.3",
         "class-variance-authority": "^0.7.1",
