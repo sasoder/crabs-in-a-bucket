@@ -8,6 +8,9 @@ import RelicDisplay from "./components/RelicsDisplay";
 import ConsumablesDisplay from "./components/ConsumablesDisplay";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "./lib/utils";
+import { GameOverModal } from "./components/GameOverModal";
+import type { GameStats } from "./types/GameStats";
+import type { GameOverData } from "./types/GameOverData";
 
 interface PlayerStats {
     lives: number;
@@ -30,6 +33,9 @@ function App() {
     });
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [canMoveSprite, setCanMoveSprite] = useState(true);
+    const [gameStats, setGameStats] = useState<GameStats | null>(null);
+    const [isGameOver, setIsGameOver] = useState(false);
+    const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
 
     useEffect(() => {
         // Only setup game listeners if game has started
@@ -44,10 +50,20 @@ function App() {
             };
             EventBus.on("open-shop", openShop);
 
+            // Listener for showing game over modal
+            const handleShowGameOver = (data: GameOverData) => {
+                console.log("App: Received show-game-over-modal event", data);
+                setGameOverData(data);
+                setIsGameOver(true);
+                setIsShopOpen(false);
+            };
+            EventBus.on("show-game-over-modal", handleShowGameOver);
+
             // Cleanup listeners when component unmounts
             return () => {
                 EventBus.off("update-stats", updateStats);
                 EventBus.off("open-shop", openShop);
+                EventBus.off("show-game-over-modal", handleShowGameOver);
             };
         }
         // No effect or cleanup needed if game hasn't started
@@ -62,6 +78,11 @@ function App() {
     const closeShop = () => {
         setIsShopOpen(false);
         EventBus.emit("close-shop");
+    };
+
+    const closeGameOver = () => {
+        setIsGameOver(false);
+        setGameOverData(null);
     };
 
     // Event emitted from the PhaserGame component
@@ -121,6 +142,11 @@ function App() {
                     isOpen={isShopOpen}
                     onClose={closeShop}
                     playerCoins={stats.coins}
+                />
+                <GameOverModal
+                    isOpen={isGameOver}
+                    onClose={closeGameOver}
+                    data={gameOverData}
                 />
             </div>
         </TooltipProvider>

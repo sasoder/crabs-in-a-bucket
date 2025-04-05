@@ -14,16 +14,24 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         name: "Heart Root",
         description: "A gnarled root pulsating with life.",
         effect: "Instantly restores 1 lost life.",
-        spriteKey: "heart", // Assuming heart_root.png exists in public/assets/consumables/
+        spriteKey: "heart",
         cost: 15,
     },
     GEODE: {
         id: "GEODE",
         name: "Geode",
         description: "Crack it open and see what's inside.",
-        effect: "Grants a random amount of coins when used.",
-        spriteKey: "coin", // Assuming geode.png exists in public/assets/consumables/
+        effect: "Wanna gamble?",
+        spriteKey: "coin",
         cost: 5,
+    },
+    TNT: {
+        id: "TNT",
+        name: "TNT",
+        description: "A bundle of TNT.",
+        effect: "Explodes",
+        spriteKey: "tnt",
+        cost: 10,
     },
     // Add more consumables here
 };

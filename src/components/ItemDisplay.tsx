@@ -49,7 +49,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
         ? "relics"
         : "consumables";
 
-    const assetPath = `/assets/sprites/${itemTypeFolder}/${item.spriteKey}.png`;
+    const assetPath = `/assets/${itemTypeFolder}/${item.spriteKey}.png`;
 
     const handlePurchaseClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent potential parent handlers
@@ -121,15 +121,10 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[200px] z-50">
                 <p className="text-2xl mb-1">{item.name}</p>
-                <p className="text-lg text-green-300">{item.effect}</p>
-                <p className="text-base text-primary mt-1">
+                <p className="text-base text-secondary mt-1">
                     {item.description}
                 </p>
-                {showPrice && cost !== undefined && (
-                    <div className="flex items-center gap-1">
-                        <Coin size="sm" cost={cost} />
-                    </div>
-                )}
+                <p className="text-lg text-green-300">{item.effect}</p>
             </TooltipContent>
         </Tooltip>
     );

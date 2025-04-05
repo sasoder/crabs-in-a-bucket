@@ -7,6 +7,7 @@ import { TerrainManager } from "../managers/TerrainManager";
 import { TILE_SIZE, BlockType } from "../constants";
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
+import { Coin } from "../entities/Coin";
 
 export default class Game extends Phaser.Scene {
     private player?: Player;
@@ -17,6 +18,7 @@ export default class Game extends Phaser.Scene {
     private maxDepthReached = 0;
     private nextShopDepthThreshold = 10;
     private lastReportedDepth = -1;
+    private totalCoinsCollected = 0;
 
     private currentShopRelicIds: string[] = [];
     private currentShopConsumableIds: string[] = [];
@@ -25,6 +27,7 @@ export default class Game extends Phaser.Scene {
     private terrainManager!: TerrainManager;
     private bouldersGroup!: Phaser.Physics.Arcade.Group;
     private enemiesGroup!: Phaser.Physics.Arcade.Group;
+    private coinsGroup!: Phaser.Physics.Arcade.Group;
 
     private blockParticleEmitters: Map<
         string,
@@ -37,6 +40,9 @@ export default class Game extends Phaser.Scene {
 
     preload() {
         this.createTileTexture(BlockType.DIRT, 0xa07042);
+        this.createTileTexture(BlockType.STONE, 0x808080);
+        this.createTileTexture(BlockType.GOLD, 0xffd700);
+        this.createCoinTexture();
 
         this.load.image("boulder", "assets/entities/boulder.png");
         this.load.image("enemy", "assets/entities/enemy.png");
@@ -47,8 +53,23 @@ export default class Game extends Phaser.Scene {
     }
 
     createTileTexture(type: BlockType, color: number) {
-        if (type !== BlockType.DIRT) return;
-        const textureKey = "dirt_tile";
+        let textureKey = "";
+        switch (type) {
+            case BlockType.DIRT:
+                textureKey = "dirt_tile";
+                break;
+            case BlockType.STONE:
+                textureKey = "stone_tile";
+                break;
+            case BlockType.GOLD:
+                textureKey = "gold_tile";
+                break;
+            default:
+                console.warn(
+                    `Cannot generate texture for unknown BlockType: ${type}`
+                );
+                return;
+        }
 
         if (this.textures.exists(textureKey)) return;
 
@@ -73,6 +94,36 @@ export default class Game extends Phaser.Scene {
         console.log(`Generated texture: ${textureKey}`);
     }
 
+    createCoinTexture() {
+        const textureKey = "coin";
+        if (this.textures.exists(textureKey)) return;
+
+        const graphics = this.make.graphics();
+        graphics.fillStyle(0xffcc00, 1);
+        graphics.fillCircle(
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE * 0.4
+        );
+        graphics.lineStyle(1, 0xcca300, 1);
+        graphics.strokeCircle(
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE / 2,
+            this.TILE_SIZE * 0.4
+        );
+        graphics.fillStyle(0xffff99, 0.7);
+        graphics.fillEllipse(
+            this.TILE_SIZE * 0.4,
+            this.TILE_SIZE * 0.4,
+            this.TILE_SIZE * 0.15,
+            this.TILE_SIZE * 0.25
+        );
+
+        graphics.generateTexture(textureKey, this.TILE_SIZE, this.TILE_SIZE);
+        graphics.destroy();
+        console.log(`Generated texture: ${textureKey}`);
+    }
+
     create() {
         this.cursors = this.input.keyboard?.createCursorKeys();
 
@@ -80,6 +131,7 @@ export default class Game extends Phaser.Scene {
         this.maxDepthReached = 0;
         this.nextShopDepthThreshold = 10;
         this.lastReportedDepth = -1;
+        this.totalCoinsCollected = 0;
 
         this.cameras.main.setBackgroundColor(0x87ceeb);
 
@@ -89,6 +141,8 @@ export default class Game extends Phaser.Scene {
             collideWorldBounds: false,
             allowGravity: true,
             gravityY: 200,
+            bounceY: 0.1,
+            dragX: 50,
         });
         this.enemiesGroup = this.physics.add.group({
             classType: Enemy,
@@ -96,6 +150,17 @@ export default class Game extends Phaser.Scene {
             collideWorldBounds: true,
             allowGravity: true,
             gravityY: 300,
+            dragX: 100,
+            bounceX: 0.1,
+        });
+        this.coinsGroup = this.physics.add.group({
+            classType: Coin,
+            runChildUpdate: false,
+            collideWorldBounds: false,
+            allowGravity: true,
+            gravityY: 250,
+            bounceY: 0.3,
+            dragX: 80,
         });
 
         this.terrainManager = new TerrainManager(
@@ -126,6 +191,8 @@ export default class Game extends Phaser.Scene {
         this.physics.add.collider(this.player, groundLayer);
         this.physics.add.collider(this.bouldersGroup, groundLayer);
         this.physics.add.collider(this.enemiesGroup, groundLayer);
+        this.physics.add.collider(this.coinsGroup, groundLayer);
+        this.physics.add.collider(this.bouldersGroup, this.bouldersGroup);
 
         this.physics.add.overlap(
             this.player,
@@ -141,17 +208,27 @@ export default class Game extends Phaser.Scene {
             undefined,
             this
         );
+        this.physics.add.overlap(
+            this.player,
+            this.coinsGroup,
+            this.handlePlayerCoinCollect,
+            undefined,
+            this
+        );
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.cameras.main.setZoom(2);
 
         this.registry.set("lives", 3);
-        this.registry.set("coins", 10);
+        this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [] as string[]);
+        this.totalCoinsCollected += 10;
         this.emitStatsUpdate(true);
 
         this.createBlockParticleEmitter("dirt_tile");
+        this.createBlockParticleEmitter("stone_tile");
+        this.createBlockParticleEmitter("gold_tile");
 
         this.setupEventListeners();
 
@@ -164,12 +241,16 @@ export default class Game extends Phaser.Scene {
         EventBus.off("purchase-item", this.handlePurchaseAttempt, this);
         EventBus.off("player-dig-attempt", this.handleDigAttempt, this);
         EventBus.off("create-explosion", this.handleCreateExplosion, this);
+        EventBus.off("block-destroyed", this.handleBlockDestroyed, this);
+        EventBus.off("restart-game", this.handleRestartGame, this);
 
         EventBus.on("close-shop", this.resumeGame, this);
         EventBus.on("request-shop-reroll", this.handleShopReroll, this);
         EventBus.on("purchase-item", this.handlePurchaseAttempt, this);
         EventBus.on("player-dig-attempt", this.handleDigAttempt, this);
         EventBus.on("create-explosion", this.handleCreateExplosion, this);
+        EventBus.on("block-destroyed", this.handleBlockDestroyed, this);
+        EventBus.on("restart-game", this.handleRestartGame, this);
     }
 
     resumeGame() {
@@ -250,14 +331,14 @@ export default class Game extends Phaser.Scene {
     private handleDigAttempt(data: { worldX: number; worldY: number }) {
         if (!this.terrainManager || !this.scene.isActive()) return;
 
-        const destroyedBlockTextureKey = this.terrainManager.digBlockAt(
+        const destroyedBlockInfo = this.terrainManager.digBlockAt(
             data.worldX,
             data.worldY
         );
 
-        if (destroyedBlockTextureKey) {
+        if (destroyedBlockInfo?.textureKey) {
             this.triggerParticles(
-                destroyedBlockTextureKey,
+                destroyedBlockInfo.textureKey,
                 data.worldX,
                 data.worldY
             );
@@ -292,8 +373,10 @@ export default class Game extends Phaser.Scene {
             console.log("Enemy stomped!");
             enemy.destroy();
             player.bounce();
+            const coinReward = 5;
             const currentCoins = this.registry.get("coins") as number;
-            this.registry.set("coins", currentCoins + 5);
+            this.registry.set("coins", currentCoins + coinReward);
+            this.totalCoinsCollected += coinReward;
             this.emitStatsUpdate(true);
         } else {
             this.handlePlayerDamage(player);
@@ -340,7 +423,11 @@ export default class Game extends Phaser.Scene {
     gameOver() {
         console.log("GAME OVER");
         this.scene.pause();
-        EventBus.emit("show-game-over", { score: this.maxDepthReached });
+        EventBus.emit("show-game-over-modal", {
+            score: this.maxDepthReached,
+            totalCoins: this.totalCoinsCollected,
+            relics: this.registry.get("relics") as string[],
+        });
     }
 
     private _selectShopItems(): {
@@ -418,9 +505,6 @@ export default class Game extends Phaser.Scene {
             this.emitStatsUpdate(true);
         } else {
             console.log("Not enough coins to reroll.");
-            EventBus.emit("show-toast", {
-                message: "Not enough coins to reroll!",
-            });
         }
     }
 
@@ -488,23 +572,8 @@ export default class Game extends Phaser.Scene {
                 itemType: data.itemType,
             });
             console.log(purchaseMessage);
-            EventBus.emit("show-toast", {
-                message: purchaseMessage,
-                type: "success",
-            });
         } else {
             console.log(purchaseMessage || "Purchase failed.");
-            if (itemCost > currentCoins) {
-                EventBus.emit("show-toast", {
-                    message: "Not enough coins!",
-                    type: "error",
-                });
-            } else if (purchaseMessage) {
-                EventBus.emit("show-toast", {
-                    message: purchaseMessage,
-                    type: "warning",
-                });
-            }
         }
     }
 
@@ -555,6 +624,74 @@ export default class Game extends Phaser.Scene {
                 `No particle emitter found for texture key: ${textureKey}`
             );
         }
+    }
+
+    private handleBlockDestroyed(data: {
+        worldX: number;
+        worldY: number;
+        blockType: BlockType;
+        baseCoinChance: number;
+        textureKey: string | null;
+    }) {
+        if (data.textureKey) {
+            this.triggerParticles(data.textureKey, data.worldX, data.worldY);
+        }
+        const finalCoinChance = data.baseCoinChance;
+
+        if (Math.random() < finalCoinChance) {
+            const coin = this.coinsGroup.get(
+                data.worldX + TILE_SIZE / 2,
+                data.worldY + TILE_SIZE / 2,
+                "coin"
+            ) as Coin;
+            if (coin) {
+                coin.setActive(true);
+                coin.setVisible(true);
+                const boostX = Phaser.Math.Between(-10, 10);
+                const boostY = Phaser.Math.Between(-60, -20);
+                if (coin.body) {
+                    coin.body.enable = true;
+                    coin.setVelocity(boostX, boostY);
+                } else {
+                    console.warn("Failed to enable body for spawned coin.");
+                }
+                console.log(
+                    `Spawned coin from block type ${
+                        BlockType[data.blockType]
+                    } at (${data.worldX}, ${data.worldY})`
+                );
+            }
+        }
+    }
+
+    private handlePlayerCoinCollect(playerGO: any, coinGO: any) {
+        if (
+            !(coinGO instanceof Coin) ||
+            !coinGO.active ||
+            !(playerGO instanceof Player && playerGO === this.player)
+        ) {
+            return;
+        }
+        const coin = coinGO as Coin;
+
+        const currentCoins = this.registry.get("coins") as number;
+        const coinValue = 1;
+        this.registry.set("coins", currentCoins + coinValue);
+        this.totalCoinsCollected += coinValue;
+
+        this.emitStatsUpdate(true);
+
+        this.coinsGroup.killAndHide(coin);
+        if (coin.body) {
+            coin.body.enable = false;
+        }
+
+        console.log(`Collected coin. Total: ${this.registry.get("coins")}`);
+    }
+
+    private handleRestartGame() {
+        console.log("Restarting game from GameOver modal...");
+        this.scene.start("Game");
     }
 }
 

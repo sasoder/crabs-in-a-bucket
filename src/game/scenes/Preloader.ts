@@ -92,7 +92,7 @@ export default class Preloader extends Phaser.Scene {
         // ... add all other relic images ...
 
         // Load consumable images
-        this.load.image("consumable_tnt", "assets/consumables/tnt.png");
+        this.load.image("tnt", "assets/consumables/tnt.png");
 
         // ... add all other consumable images ...
     }

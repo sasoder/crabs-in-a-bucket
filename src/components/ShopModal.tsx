@@ -175,7 +175,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                 </AlertDialogTitle>
                                 <AlertDialogDescription
                                     className={cn(
-                                        "text-xl text-center text-secondary-foreground px-12"
+                                        "text-xl text-center text-secondary px-12"
                                     )}
                                 >
                                     As you make your way deeper, you can
