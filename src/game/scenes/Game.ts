@@ -156,7 +156,7 @@ export default class Game extends Phaser.Scene {
             return;
         }
 
-        // Set collision for tile index 1
+        // Set collision for tile index 1, excluding empty tiles (0)
         this.groundLayer.setCollisionByExclusion([0]);
 
         // Set bounds
@@ -231,6 +231,8 @@ export default class Game extends Phaser.Scene {
             EventBus.off("start-game");
         });
 
+        EventBus.on("player-dig-attempt", this.handleDigAttempt, this);
+
         EventBus.emit("current-scene-ready", this);
     }
 
@@ -302,6 +304,62 @@ export default class Game extends Phaser.Scene {
         // Update player logic (handles its own movement now)
         if (this.player) {
             this.player.update();
+        }
+    }
+
+    private handleDigAttempt(data: { worldX: number; worldY: number }) {
+        if (!this.groundLayer || !this.TILE_SIZE) return; // Ensure layer exists
+
+        const digTileX = this.groundLayer.worldToTileX(data.worldX);
+        const digTileY = this.groundLayer.worldToTileY(data.worldY);
+
+        if (digTileX === null || digTileY === null) return; // Check for null
+
+        const tileToRemove = this.groundLayer.getTileAt(digTileX, digTileY);
+
+        // Check if it's a destructible tile (assuming index 1 is destructible)
+        if (tileToRemove && tileToRemove.index === 1) {
+            // --- Tile Removal & Effects ---
+            try {
+                const tilePixelX =
+                    digTileX * this.TILE_SIZE + this.TILE_SIZE / 2;
+                const tilePixelY =
+                    digTileY * this.TILE_SIZE + this.TILE_SIZE / 2;
+                const particles = this.add.particles(
+                    tilePixelX,
+                    tilePixelY,
+                    "tile", // Make sure 'tile' texture is loaded
+                    {
+                        speed: 100,
+                        scale: { start: 0.2, end: 0.01 },
+                        quantity: 5,
+                        lifespan: 300,
+                        gravityY: 200,
+                    }
+                );
+                this.time.delayedCall(500, () => particles.destroy());
+            } catch (error) {
+                console.warn("Could not create particles:", error);
+            }
+
+            // Replace the tile with an empty one (0 index)
+            const placedTile = this.groundLayer.putTileAt(
+                0,
+                digTileX,
+                digTileY
+            );
+
+            if (!placedTile) {
+                console.warn(
+                    `Failed to place empty tile at ${digTileX}, ${digTileY}`
+                );
+            } else {
+                // Optional: You might need to recalculate collisions for the layer if needed immediately
+                // this.groundLayer.calculateFacesWithin(digTileX - 1, digTileY - 1, 3, 3);
+            }
+
+            // TODO: Add logic here to check for enemies within the dig area (digTileX, digTileY)
+            // and kill them if necessary.
         }
     }
 }
