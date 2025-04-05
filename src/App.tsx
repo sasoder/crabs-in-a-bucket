@@ -1,104 +1,136 @@
-import { useRef, useState } from 'react';
-import { IRefPhaserGame, PhaserGame } from './game/PhaserGame';
-import { MainMenu } from './game/scenes/MainMenu';
+import { useRef, useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { IRefPhaserGame, PhaserGame } from "./game/PhaserGame";
+import { EventBus } from "./game/EventBus";
 
-function App()
-{
-    // The sprite can only be moved in the MainMenu Scene
-    const [canMoveSprite, setCanMoveSprite] = useState(true);
+interface PlayerStats {
+    lives: number;
+    coins: number;
+    depth: number;
+    relics: string[];
+    consumables: string[];
+}
 
-    //  References to the PhaserGame component (game and scene are exposed)
+function App() {
+    // References to the PhaserGame component (game and scene are exposed)
     const phaserRef = useRef<IRefPhaserGame | null>(null);
-    const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
+    const [gameStarted, setGameStarted] = useState(false);
+    const [stats, setStats] = useState<PlayerStats>({
+        lives: 3,
+        coins: 0,
+        depth: 0,
+        relics: [],
+        consumables: [],
+    });
+    const [isShopOpen, setIsShopOpen] = useState(false);
 
-    const changeScene = () => {
+    useEffect(() => {
+        // Only setup game listeners if game has started
+        if (gameStarted) {
+            const updateStats = (newStats: Partial<PlayerStats>) => {
+                setStats((prev) => ({ ...prev, ...newStats }));
+            };
+            EventBus.on("ui-update-stats", updateStats);
 
-        if(phaserRef.current)
-        {     
-            const scene = phaserRef.current.scene as MainMenu;
-            
-            if (scene)
-            {
-                scene.changeScene();
-            }
+            const openShop = () => {
+                setIsShopOpen(true);
+            };
+            EventBus.on("open-shop", openShop);
+
+            // Cleanup listeners when component unmounts or gameStarted becomes false
+            return () => {
+                EventBus.removeListener("ui-update-stats", updateStats);
+                EventBus.removeListener("open-shop", openShop);
+            };
         }
-    }
+        // No cleanup needed if listeners weren't added
+        return () => {};
+    }, [gameStarted]);
 
-    const moveSprite = () => {
+    const startGame = () => {
+        setGameStarted(true);
+        // Ensure the event is emitted *after* the PhaserGame component is mounted
+        // We might need a slight delay or ensure PhaserGame mounts immediately
+        setTimeout(() => EventBus.emit("start-game"), 100); // Small delay might help, adjust if needed
+    };
 
-        if(phaserRef.current)
-        {
-
-            const scene = phaserRef.current.scene as MainMenu;
-
-            if (scene && scene.scene.key === 'MainMenu')
-            {
-                // Get the update logo position
-                scene.moveLogo(({ x, y }) => {
-
-                    setSpritePosition({ x, y });
-
-                });
-            }
-        }
-
-    }
-
-    const addSprite = () => {
-
-        if (phaserRef.current)
-        {
-            const scene = phaserRef.current.scene;
-
-            if (scene)
-            {
-                // Add more stars
-                const x = Phaser.Math.Between(64, scene.scale.width - 64);
-                const y = Phaser.Math.Between(64, scene.scale.height - 64);
-    
-                //  `add.sprite` is a Phaser GameObjectFactory method and it returns a Sprite Game Object instance
-                const star = scene.add.sprite(x, y, 'star');
-    
-                //  ... which you can then act upon. Here we create a Phaser Tween to fade the star sprite in and out.
-                //  You could, of course, do this from within the Phaser Scene code, but this is just an example
-                //  showing that Phaser objects and systems can be acted upon from outside of Phaser itself.
-                scene.add.tween({
-                    targets: star,
-                    duration: 500 + Math.random() * 1000,
-                    alpha: 0,
-                    yoyo: true,
-                    repeat: -1
-                });
-            }
-        }
-    }
+    const closeShop = () => {
+        setIsShopOpen(false);
+        EventBus.emit("close-shop");
+    };
 
     // Event emitted from the PhaserGame component
     const currentScene = (scene: Phaser.Scene) => {
-
-        setCanMoveSprite(scene.scene.key !== 'MainMenu');
-        
-    }
+        // We could potentially use this later, but not needed for current logic
+        // console.log("Current Phaser scene:", scene.scene.key);
+    };
 
     return (
-        <div id="app">
-            <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-            <div>
-                <div>
-                    <button className="button" onClick={changeScene}>Change Scene</button>
+        <div className="app-container flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+            {!gameStarted ? (
+                // Show Start Button if game hasn't started
+                <div className="text-center">
+                    <h1 className="text-4xl font-bold mb-8">Just Dig</h1>
+                    <Button onClick={startGame} size="lg">
+                        Start Game
+                    </Button>
                 </div>
-                <div>
-                    <button disabled={canMoveSprite} className="button" onClick={moveSprite}>Toggle Movement</button>
-                </div>
-                <div className="spritePosition">Sprite Position:
-                    <pre>{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-                </div>
-                <div>
-                    <button className="button" onClick={addSprite}>Add New Sprite</button>
-                </div>
-            </div>
+            ) : (
+                // Show Game and UI once started
+                <>
+                    <PhaserGame
+                        ref={phaserRef}
+                        currentActiveScene={currentScene}
+                    />
+                    <div className="ui-container absolute top-0 left-0 p-4 text-lg font-mono bg-black/50 rounded-br-lg">
+                        <div className="player-stats">
+                            <div>Lives: {stats.lives}</div>
+                            <div>Coins: {stats.coins}</div>
+                            <div>Depth: {stats.depth}</div>
+                            {stats.relics.length > 0 && (
+                                <div className="relics">
+                                    <h4>Relics:</h4>
+                                    <ul>
+                                        {stats.relics.map((relic, i) => (
+                                            <li key={i}>{relic}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {stats.consumables.length > 0 && (
+                                <div className="consumables">
+                                    <h4>Consumables:</h4>
+                                    <ul>
+                                        {stats.consumables.map((item, i) => (
+                                            <li key={i}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {isShopOpen && (
+                        <div className="shop-overlay fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                            <div className="shop-modal bg-card p-6 rounded-lg shadow-lg text-card-foreground w-1/2 max-w-md">
+                                <h2 className="text-2xl font-bold mb-4">
+                                    Shop Time!
+                                </h2>
+                                <p className="mb-2">
+                                    You reached depth {stats.depth}!
+                                </p>
+                                <p className="mb-4">(Shop items go here)</p>
+                                <Button onClick={closeShop}>
+                                    Continue Digging
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
         </div>
-    )
+    );
 }
 
-export default App
+export default App;
+

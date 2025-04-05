@@ -1,0 +1,101 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+**Mini Game Design Document: Just Dig**
+
+**1. Concept:**
+A 2D tilemap roguelike platformer where the player digs downwards by jumping, breaking blocks directly below. The goal is to descend as deep as possible through procedurally generated levels filled with enemies and hazards. Every 10 rows cleared, the player enters a shop to spend coins on permanent Relics and single-use Consumables. The run ends upon losing all 3 lives (permadeath).
+
+**2. Core Mechanics:**
+
+*   **Movement:** Standard left/right horizontal movement on surfaces.
+*   **Jumping / Digging:**
+    *   Pressing the jump button initiates an upward leap *and* simultaneously destroys blocks in a defined area directly beneath the player's position *at the start of the jump*.
+    *   **Base Dig Area:** 1 block wide x 1 block deep. This can be upgraded via Relics.
+    *   Enemies within/on the destroyed block area are instantly killed.
+*   **Enemy Interaction:**
+    *   **Dig Kill:** Enemies caught within the blocks destroyed by the player's jump/dig are killed.
+    *   **Stomp Kill:** If the player lands directly on top of an enemy after a jump, the enemy is killed.
+    *   **Coin Reward:** Killing an enemy by either method grants the player coins.
+    *   Enemies cannot be harmed by simply bumping into them horizontally (this damages the player and kills the enemy and grants no coins).
+*   **Progression:**
+    *   The game world scrolls vertically as the player descends.
+    *   Depth is measured in "rows" or equivalent units.
+    *   Every 10 rows descended, the game pauses, and the Shop interface appears.
+*   **Lives & Permadeath:**
+    *   The player starts with 3 lives (hearts).
+    *   Taking damage (e.g., enemy collision, environmental hazards) removes one life.
+    *   Losing all lives ends the run (permadeath). The score is the maximum depth reached.
+*   **Economy:**
+    *   **Currency:** Coins.
+    *   **Sources:**
+        *   Killing enemies (only Stomp Kill, dig kill only kills).
+        *   Picking up coin items randomly scattered in the environment.
+        *   Specific Relic effects (e.g., Excavator's Greed, Piggy Bank Shard).
+        *   Using specific Consumables (e.g., Geode).
+
+**3. Shop System:**
+
+*   **Trigger:** Appears automatically every 10 rows descended.
+*   **Interface:** A pop-up window displaying a selection of items (e.g., 2-3 Relics and 2-3 Consumables) with their respective coin costs.
+*   **Purchasing:** Players spend collected coins to acquire items. Once purchased, Relics are immediately active, and Consumables are added to the player's inventory, HOWEVER, the player can only ever carry 3 consumables, and they are in order with one key as the use trigger. You can reorder them in the shop, and sell them whenever.
+
+**4. Items:**
+
+**(A) Relics (Permanent Passive Upgrades for the Run)**
+
+*   **Steel-Toed Boots:**
+    *   Effect: `Dig Depth +1`
+    *   *Description:* Your jump dig destroys blocks one layer deeper than normal. (Stacks additively).
+*   **Impact Tremor:**
+    *   Effect: `Dig Width +1`
+    *   *Description:* Your jump dig destroys blocks two tiles wider than normal (e.g., 1 -> 3 wide, 3 -> 5 wide). Affects area symmetrically. (Stacks additively).
+*   **Excavator's Greed:**
+    *   Effect: `Broken Blocks Drop Coins (Low Chance)`
+    *   *Description:* Each block destroyed by your dig has a small percentage chance to drop a coin.
+*   **Tunnel Rat:**
+    *   Effect: `Can Squeeze Through 1-Tile Gaps`
+    *   *Description:* Allows horizontal movement through narrow 1-tile high passages that are normally impassable.
+*   **Springy Soles:**
+    *   Effect: `Jump Height +10%`
+    *   *Description:* Increases the maximum height of your jumps. (Stacks additively).
+*   **Runner's Wraps:**
+    *   Effect: `Move Speed +10%`
+    *   *Description:* Increases your horizontal movement speed. (Stacks additively).
+*   **Hard Hat:**
+    *   Effect: `Ignore Falling Hazard Damage`
+    *   *Description:* Completely negates damage from falling hazards (e.g., rocks, enemies falling from above - requires hazards to exist).
+*   **Coin Magnet:**
+    *   Effect: `Auto-Collect Nearby Coins`
+    *   *Description:* Coins within a certain radius automatically fly towards the player. Quality of life upgrade.
+*   **Prospector's Pendant:**
+    *   Effect: `Coin Value +25%`
+    *   *Description:* Increases the number of coins received from all sources (kills, pickups) by 25%.
+*   **Piggy Bank Shard:**
+    *   Effect: `Gain Coins in Shop (+1 per 5 Held)`
+    *   *Description:* Upon entering the shop screen, you gain bonus coins equal to 1 for every 5 coins you currently possess (calculated before spending).
+*   **Pet Rock:**
+    *   Effect: `Follows Player`
+    *   *Description:* A friendly Pet Rock follows you loyally. It might occasionally block a single enemy projectile, but mostly offers companionship.
+*   **Symbiotic Worm:**
+    *   Effect: `Max Lives +1`, `Occasionally Drop Coin`
+    *   *Description:* Increases your maximum life count by one, but you will randomly drop a single coin periodically.
+
+**(B) Consumables (Single Use Items)**
+
+*   **Bomb:**
+    *   *Effect:* Placeable item with a short fuse. Explodes in a 3x3 area, destroying most blocks and killing enemies within the radius.
+*   **Drill Charge:**
+    *   *Effect:* Placeable item. After a brief delay, drills straight down approx. 5-10 tiles, destroying blocks and enemies in its direct path.
+*   **Side Spikes Trap:**
+    *   *Effect:* Instantly deploys temporary spike traps on the ground tiles immediately to your left and right. Kills the next enemy that touches them. Disappears after triggering or a set time.
+*   **Enemy Bait:**
+    *   *Effect:* Throwable item. Creates a lure point where it lands, attracting nearby enemies towards it for a few seconds. Useful for grouping or pulling into hazards.
+*   **Heart Root:**
+    *   *Effect:* Instantly restores 1 lost life, up to your maximum.
+*   **Rugged Equipment:**
+    *   *Effect:* Grants a temporary equipment that absorbs the next instance of damage taken. Dissipates after taking a hit or after a short duration.
+*   **Geode:**
+    *   *Effect:* When used, breaks open to grant a random, potentially large, amount of coins. A small gamble.

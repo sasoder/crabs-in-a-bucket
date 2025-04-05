@@ -242,3 +242,49 @@ Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, 
 The Phaser logo and characters are &copy; 2011 - 2024 Phaser Studio Inc.
 
 All rights reserved.
+
+```
+template-react-ts
+├─ .cursor
+│  └─ rules
+│     ├─ core.mdc
+│     └─ framework.mdc
+├─ .editorconfig
+├─ .eslintrc.cjs
+├─ LICENSE
+├─ README.md
+├─ bun.lock
+├─ index.html
+├─ log.js
+├─ package-lock.json
+├─ package.json
+├─ public
+│  ├─ assets
+│  │  ├─ bg.png
+│  │  ├─ logo.png
+│  │  └─ star.png
+│  ├─ favicon.png
+│  └─ style.css
+├─ screenshot.png
+├─ src
+│  ├─ App.tsx
+│  ├─ game
+│  │  ├─ EventBus.ts
+│  │  ├─ PhaserGame.tsx
+│  │  ├─ Player.ts
+│  │  ├─ main.ts
+│  │  └─ scenes
+│  │     ├─ Boot.ts
+│  │     ├─ Game.ts
+│  │     ├─ GameOver.ts
+│  │     ├─ MainMenu.ts
+│  │     └─ Preloader.ts
+│  ├─ main.tsx
+│  └─ vite-env.d.ts
+├─ tsconfig.json
+├─ tsconfig.node.json
+└─ vite
+   ├─ config.dev.mjs
+   └─ config.prod.mjs
+
+```
