@@ -4,7 +4,7 @@ export interface Relic {
     description: string;
     effect: string; // For display in tooltip
     spriteKey: string; // Asset key for the icon
-    // Add other properties later, like how to apply the effect
+    cost: number; // How much it costs in the shop
 }
 
 export const RELICS: Record<string, Relic> = {
@@ -15,6 +15,7 @@ export const RELICS: Record<string, Relic> = {
         description:
             "Your jump dig destroys blocks one layer deeper than normal.",
         spriteKey: "heart",
+        cost: 10,
     },
     IMPACT_TREMOR: {
         id: "IMPACT_TREMOR",
@@ -23,6 +24,7 @@ export const RELICS: Record<string, Relic> = {
         description:
             "Your jump dig destroys blocks two tiles wider than normal (e.g., 1 -> 3 wide).",
         spriteKey: "coin",
+        cost: 10,
     },
 };
 

@@ -6,6 +6,7 @@ import { ShopModal } from "./components/ShopModal";
 import { StatsDisplay } from "./components/StatsDisplay";
 import RelicDisplay from "./components/RelicsDisplay";
 import ConsumablesDisplay from "./components/ConsumablesDisplay";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface PlayerStats {
     lives: number;
@@ -68,45 +69,52 @@ function App() {
     };
 
     return (
-        // <TooltipProvider>
-        <div
-            id="app"
-            className="h-screen w-screen bg-gray-800 flex justify-center items-center"
-        >
-            {!gameStarted ? (
-                // Show Start Button if game hasn't started
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-8 text-white">
-                        Just Dig
-                    </h1>
-                    <Button onClick={startGame} size="lg">
-                        Start Game
-                    </Button>
-                </div>
-            ) : (
-                // Add a relative container around the game and its UI
-                <div className="relative">
-                    <PhaserGame
-                        ref={phaserRef}
-                        currentActiveScene={currentScene}
-                    />
-                    {/* StatsDisplay is now positioned relative to this div */}
-                    <StatsDisplay stats={stats} />
-
-                    {/* RelicsDisplay: Top Center */}
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 p-4">
-                        <RelicDisplay relicIds={stats.relics} />
+        // Wrap the relevant parts (HUD, Shop) in TooltipProvider
+        <TooltipProvider>
+            <div
+                id="app"
+                className="h-screen w-screen bg-gray-800 flex justify-center items-center"
+            >
+                {!gameStarted ? (
+                    // Show Start Button if game hasn't started
+                    <div className="text-center">
+                        <h1 className="text-4xl font-bold mb-8 text-white">
+                            Just Dig
+                        </h1>
+                        <Button onClick={startGame} size="lg">
+                            Start Game
+                        </Button>
                     </div>
+                ) : (
+                    // Add a relative container around the game and its UI
+                    <div className="relative">
+                        <PhaserGame
+                            ref={phaserRef}
+                            currentActiveScene={currentScene}
+                        />
+                        {/* StatsDisplay is now positioned relative to this div */}
+                        <StatsDisplay stats={stats} />
 
-                    {/* ConsumablesDisplay: Top Right */}
-                    <div className="absolute top-0 right-0 p-4">
-                        <ConsumablesDisplay consumableIds={stats.consumables} />
+                        {/* RelicsDisplay: Top Center */}
+                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 p-4">
+                            <RelicDisplay relicIds={stats.relics} />
+                        </div>
+
+                        {/* ConsumablesDisplay: Top Right */}
+                        <div className="absolute top-0 right-0 p-4">
+                            <ConsumablesDisplay
+                                consumableIds={stats.consumables}
+                            />
+                        </div>
                     </div>
-                </div>
-            )}
-            <ShopModal isOpen={isShopOpen} onClose={closeShop} />
-        </div>
-        // </TooltipProvider>
+                )}
+                <ShopModal
+                    isOpen={isShopOpen}
+                    onClose={closeShop}
+                    playerCoins={stats.coins}
+                />
+            </div>
+        </TooltipProvider>
     );
 }
 

@@ -15,7 +15,7 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         description: "A gnarled root pulsating with life.",
         effect: "Instantly restores 1 lost life.",
         spriteKey: "heart_root", // Assuming heart_root.png exists in public/assets/consumables/
-        cost: 50,
+        cost: 15,
     },
     GEODE: {
         id: "GEODE",
@@ -23,7 +23,7 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         description: "Crack it open and see what's inside.",
         effect: "Grants a random amount of coins when used.",
         spriteKey: "geode", // Assuming geode.png exists in public/assets/consumables/
-        cost: 30,
+        cost: 5,
     },
     // Add more consumables here
 };
@@ -32,3 +32,4 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
 export function getConsumableById(id: string): Consumable | undefined {
     return CONSUMABLES[id];
 }
+

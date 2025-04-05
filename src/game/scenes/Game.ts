@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { EventBus } from "../EventBus";
 import { Player } from "../Player";
 import { RELICS, type Relic } from "../data/Relics";
+import { CONSUMABLES, type Consumable } from "../data/Consumables";
 
 export default class Game extends Phaser.Scene {
     private player?: Player;
@@ -16,6 +17,10 @@ export default class Game extends Phaser.Scene {
     private maxDepthReached = 0;
     private nextShopDepthThreshold = 10;
     private lastReportedDepth = -1; // Track last depth sent
+
+    private currentShopRelicIds: string[] = [];
+    private currentShopConsumableIds: string[] = [];
+    private currentRerollCost: number = 5;
 
     constructor() {
         super("Game");
@@ -117,7 +122,7 @@ export default class Game extends Phaser.Scene {
 
         // --- Tilemap Setup ---
         const mapWidth = 30;
-        const mapHeight = 20;
+        const mapHeight = 500;
         const mapData: number[][] = [];
 
         // Create basic map data (1 for block, 0 for empty)
@@ -202,17 +207,17 @@ export default class Game extends Phaser.Scene {
         this.cameras.main.setZoom(2);
 
         // --- Initial State & UI ---
-        const initialRelics: Relic[] = [
-            RELICS.STEEL_TOED_BOOTS,
-            RELICS.IMPACT_TREMOR,
+        const initialRelics: string[] = [
+            RELICS.STEEL_TOED_BOOTS.id,
+            RELICS.IMPACT_TREMOR.id,
         ];
         this.registry.set("lives", 3);
-        this.registry.set("coins", 0);
+        this.registry.set("coins", 100);
         this.registry.set("relics", initialRelics);
-        this.registry.set("consumables", []);
+        this.registry.set("consumables", [] as string[]);
 
         // --- Emit Initial Stats ---
-        this.emitStatsUpdate(); // Use a helper function
+        this.emitStatsUpdate(true);
 
         // --- Initialize Particle Emitter (but don't start it yet) ---
         // Make sure 'tile' texture is loaded in preload
@@ -228,20 +233,8 @@ export default class Game extends Phaser.Scene {
 
         // --- Event Listeners ---
         EventBus.on("close-shop", this.resumeGame, this);
-        EventBus.on(
-            "start-game",
-            () => {
-                // This is just a placeholder since we're already in the Game scene
-                // We can use this to reset the game if needed
-                console.log("Game started via start-game event");
-            },
-            this
-        );
-        this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
-            EventBus.off("close-shop", this.resumeGame, this);
-            EventBus.off("start-game");
-        });
-
+        EventBus.on("request-shop-reroll", this.handleShopReroll, this);
+        EventBus.on("purchase-item", this.handlePurchaseAttempt, this);
         EventBus.on("player-dig-attempt", this.handleDigAttempt, this);
 
         EventBus.emit("current-scene-ready", this);
@@ -249,7 +242,7 @@ export default class Game extends Phaser.Scene {
 
     createBackgroundGrid() {
         const mapWidth = 30;
-        const mapHeight = 20;
+        const mapHeight = 500;
 
         const graphics = this.add.graphics();
         graphics.lineStyle(1, 0xdddddd, 0.3);
@@ -276,6 +269,7 @@ export default class Game extends Phaser.Scene {
     }
 
     resumeGame() {
+        console.log("Resuming game scene...");
         this.scene.resume();
     }
 
@@ -301,13 +295,13 @@ export default class Game extends Phaser.Scene {
         let depthJustIncreased = false;
         if (calculatedDepth > this.maxDepthReached) {
             this.maxDepthReached = calculatedDepth;
-            this.currentDepth = this.maxDepthReached;
-            depthJustIncreased = true; // Flag that depth increased this frame
+            depthJustIncreased = true;
         }
 
-        // --- Emit Stats Update (Only if depth increased) ---
-        if (depthJustIncreased) {
-            this.emitStatsUpdate(); // Use the helper
+        // Always update currentDepth for display purposes, even if not max
+        if (calculatedDepth !== this.currentDepth) {
+            this.currentDepth = calculatedDepth;
+            this.emitStatsUpdate();
         }
 
         // --- Shop Trigger Check ---
@@ -316,66 +310,55 @@ export default class Game extends Phaser.Scene {
             this.currentDepth >= this.nextShopDepthThreshold
         ) {
             this.nextShopDepthThreshold += 10;
-            this.scene.pause();
-            EventBus.emit("open-shop");
-            return; // Stop update if paused for shop
+            this.openShop();
+            return;
         }
 
         // --- Player Update (Pass Delta Time) ---
-        if (this.player) {
-            this.player.update(time, delta); // Pass time and delta to player
+        if (this.player && this.scene.isActive()) {
+            this.player.update(time, delta);
         }
     }
 
-    // Helper to emit stats only when changed
+    // Helper to emit stats only when changed or forced
     emitStatsUpdate(force = false) {
         const currentLives = this.registry.get("lives");
         const currentCoins = this.registry.get("coins");
         const currentRelics = this.registry.get("relics");
         const currentConsumables = this.registry.get("consumables");
-        // Only update depth if it's a new whole number
-        const depthChanged = this.currentDepth !== this.lastReportedDepth;
+        const depthToShow = this.maxDepthReached;
 
-        // Check if anything significant changed (or if forced)
-        // TODO: Compare relic/consumable arrays more robustly if needed
-        if (
-            force ||
-            depthChanged // || other conditions like lives change, coin change etc.
-            // You'll need to call emitStatsUpdate() whenever lives/coins change too
-        ) {
-            this.lastReportedDepth = this.currentDepth; // Update last reported depth
+        const changed = force || depthToShow !== this.lastReportedDepth;
+
+        if (changed) {
+            this.lastReportedDepth = depthToShow;
             EventBus.emit("update-stats", {
                 lives: currentLives,
                 coins: currentCoins,
-                depth: this.currentDepth,
+                depth: depthToShow,
                 relics: currentRelics,
                 consumables: currentConsumables,
             });
-            // console.log("Stats Updated:", this.currentDepth); // For debugging
         }
     }
 
     private handleDigAttempt(data: { worldX: number; worldY: number }) {
-        if (!this.groundLayer || !this.TILE_SIZE || !this.digParticles) return; // Ensure emitter exists
+        if (!this.groundLayer || !this.TILE_SIZE || !this.digParticles) return;
 
         const digTileX = this.groundLayer.worldToTileX(data.worldX);
         const digTileY = this.groundLayer.worldToTileY(data.worldY);
 
-        if (digTileX === null || digTileY === null) return; // Check for null
+        if (digTileX === null || digTileY === null) return;
 
         const tileToRemove = this.groundLayer.getTileAt(digTileX, digTileY);
 
-        // Check if it's a destructible tile (assuming index 1 is destructible)
         if (tileToRemove && tileToRemove.index === 1) {
-            // --- Tile Removal & Effects ---
             const tilePixelX = digTileX * this.TILE_SIZE + this.TILE_SIZE / 2;
             const tilePixelY = digTileY * this.TILE_SIZE + this.TILE_SIZE / 2;
 
-            // Use the existing emitter
             this.digParticles.setPosition(tilePixelX, tilePixelY);
-            this.digParticles.explode(15); // Emit 5 particles at the new location
+            this.digParticles.explode(15);
 
-            // Replace the tile with an empty one (0 index)
             const placedTile = this.groundLayer.putTileAt(
                 0,
                 digTileX,
@@ -386,13 +369,137 @@ export default class Game extends Phaser.Scene {
                 console.warn(
                     `Failed to place empty tile at ${digTileX}, ${digTileY}`
                 );
-            } else {
-                // Optional: You might need to recalculate collisions for the layer if needed immediately
-                // this.groundLayer.calculateFacesWithin(digTileX - 1, digTileY - 1, 3, 3);
             }
+        }
+    }
 
-            // TODO: Add logic here to check for enemies within the dig area (digTileX, digTileY)
-            // and kill them if necessary.
+    private _selectShopItems(): {
+        relicIds: string[];
+        consumableIds: string[];
+    } {
+        const allRelicIds = Object.keys(RELICS);
+        const allConsumableIds = Object.keys(CONSUMABLES);
+
+        const shuffledRelics = Phaser.Utils.Array.Shuffle(allRelicIds);
+        const shuffledConsumables =
+            Phaser.Utils.Array.Shuffle(allConsumableIds);
+
+        const numRelicsToPick = Math.min(2, shuffledRelics.length);
+        const numConsumablesToPick = Math.min(2, shuffledConsumables.length);
+
+        return {
+            relicIds: shuffledRelics.slice(0, numRelicsToPick),
+            consumableIds: shuffledConsumables.slice(0, numConsumablesToPick),
+        };
+    }
+
+    private openShop() {
+        const shopSelection = this._selectShopItems();
+        this.currentShopRelicIds = shopSelection.relicIds;
+        this.currentShopConsumableIds = shopSelection.consumableIds;
+        this.currentRerollCost = 5;
+
+        console.log(
+            "Opening Shop with:",
+            shopSelection,
+            "Cost:",
+            this.currentRerollCost
+        );
+
+        EventBus.emit("open-shop", {
+            relicIds: this.currentShopRelicIds,
+            consumableIds: this.currentShopConsumableIds,
+            rerollCost: this.currentRerollCost,
+        });
+        this.scene.pause();
+    }
+
+    private handleShopReroll() {
+        const currentCoins = this.registry.get("coins") as number;
+
+        if (currentCoins >= this.currentRerollCost) {
+            this.registry.set("coins", currentCoins - this.currentRerollCost);
+
+            this.currentRerollCost += 1;
+
+            const shopSelection = this._selectShopItems();
+            this.currentShopRelicIds = shopSelection.relicIds;
+            this.currentShopConsumableIds = shopSelection.consumableIds;
+
+            console.log(
+                "Rerolling Shop. New Items:",
+                shopSelection,
+                "New Cost:",
+                this.currentRerollCost
+            );
+
+            EventBus.emit("update-shop-items", {
+                relicIds: this.currentShopRelicIds,
+                consumableIds: this.currentShopConsumableIds,
+                rerollCost: this.currentRerollCost,
+            });
+
+            this.emitStatsUpdate(true);
+        } else {
+            console.log("Not enough coins to reroll.");
+        }
+    }
+
+    private handlePurchaseAttempt(data: {
+        itemId: string;
+        itemType: "relic" | "consumable";
+    }) {
+        console.log(`Attempting to purchase ${data.itemType}: ${data.itemId}`);
+        const currentCoins = this.registry.get("coins") as number;
+        let itemCost = 0;
+        let canPurchase = false;
+
+        if (data.itemType === "relic") {
+            const relic = RELICS[data.itemId];
+            itemCost = relic ? 100 : 9999;
+            if (relic && currentCoins >= itemCost) {
+                const currentRelics = this.registry.get("relics") as string[];
+                if (!currentRelics.includes(data.itemId)) {
+                    this.registry.set("coins", currentCoins - itemCost);
+                    this.registry.set("relics", [
+                        ...currentRelics,
+                        data.itemId,
+                    ]);
+                    canPurchase = true;
+                    console.log(`Purchased Relic: ${data.itemId}`);
+                } else {
+                    console.log(`Already own Relic: ${data.itemId}`);
+                }
+            }
+        } else if (data.itemType === "consumable") {
+            const consumable = CONSUMABLES[data.itemId];
+            itemCost = consumable ? consumable.cost : 9999;
+            if (consumable && currentCoins >= itemCost) {
+                const currentConsumables = this.registry.get(
+                    "consumables"
+                ) as string[];
+                if (currentConsumables.length < 3) {
+                    this.registry.set("coins", currentCoins - itemCost);
+                    this.registry.set("consumables", [
+                        ...currentConsumables,
+                        data.itemId,
+                    ]);
+                    canPurchase = true;
+                    console.log(`Purchased Consumable: ${data.itemId}`);
+                } else {
+                    console.log("Consumable inventory full.");
+                }
+            }
+        }
+
+        if (canPurchase) {
+            this.emitStatsUpdate(true);
+            EventBus.emit("item-purchased", {
+                itemId: data.itemId,
+                itemType: data.itemType,
+            });
+        } else if (itemCost > currentCoins) {
+            console.log("Not enough coins for purchase.");
         }
     }
 }

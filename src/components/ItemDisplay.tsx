@@ -115,16 +115,11 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
             </TooltipTrigger>
             <TooltipContent
                 side="bottom"
-                className="bg-gray-900 text-white border-gray-700 p-2 rounded shadow-lg max-w-xs z-50" // Ensure tooltip is on top
+                className=" z-50" // Ensure tooltip is on top
             >
                 <p className="font-bold text-base mb-1">{item.name}</p>
-                <p className="text-sm text-green-400">{item.effect}</p>
-                <p className="text-xs text-gray-400 mt-1">{item.description}</p>
-                {showPrice && cost !== undefined && (
-                    <p className="text-xs text-yellow-500 mt-1 font-medium">
-                        Cost: {cost} Coins
-                    </p>
-                )}
+                <p className="text-sm">{item.effect}</p>
+                <p className="text-xs text-primary mt-1">{item.description}</p>
             </TooltipContent>
         </Tooltip>
     );
