@@ -1,6 +1,7 @@
 // src/game/entities/Boulder.ts
 import Phaser from "phaser";
 import { TILE_SIZE } from "../constants";
+import { EventBus } from "../EventBus";
 
 export class Coin extends Phaser.Physics.Arcade.Image {
     constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -20,19 +21,96 @@ export class Coin extends Phaser.Physics.Arcade.Image {
         this.setImmovable(false); // Coins should be movable
     }
 
-    // Group's `get` method handles reuse, but you could add custom activate/deactivate if needed
-    // activate() {
-    //     this.setActive(true);
-    //     this.setVisible(true);
-    //     this.body.enable = true;
-    //     // Reset any specific coin state if necessary
-    // }
+    static spawn(
+        scene: Phaser.Scene,
+        coinsGroup: Phaser.Physics.Arcade.Group,
+        worldX: number,
+        worldY: number,
+        count: number = 1
+    ) {
+        const spawnCenterX = worldX + TILE_SIZE / 2;
+        const spawnCenterY = worldY + TILE_SIZE / 2;
 
-    // deactivate() {
-    //     // Called by killAndHide
-    //     this.setActive(false);
-    //     this.setVisible(false);
-    //     this.body.enable = false;
-    // }
+        for (let i = 0; i < count; i++) {
+            const offsetX =
+                count > 1
+                    ? Phaser.Math.Between(-TILE_SIZE * 0.2, TILE_SIZE * 0.2)
+                    : 0;
+            const offsetY =
+                count > 1
+                    ? Phaser.Math.Between(-TILE_SIZE * 0.2, TILE_SIZE * 0.2)
+                    : 0;
+
+            const coin = coinsGroup.get(
+                spawnCenterX + offsetX,
+                spawnCenterY + offsetY,
+                "coin"
+            ) as Coin | null;
+
+            if (coin) {
+                coin.setActive(true);
+                coin.setVisible(true);
+                coin.setScale(0.8);
+
+                const body = coin.body as Phaser.Physics.Arcade.Body | null;
+                if (body) {
+                    body.enable = true;
+                    body.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.8);
+                    const boostX = Phaser.Math.Between(-40, 40);
+                    const boostY = Phaser.Math.Between(-80, -40);
+                    body.setVelocity(boostX, boostY);
+                    body.setCollideWorldBounds(false);
+                    body.allowGravity = true;
+                    body.setBounce(0.3, 0.3);
+                    body.setDragX(80);
+                } else {
+                    console.warn(
+                        "Failed to get physics body for spawned coin."
+                    );
+                }
+            } else {
+                console.warn("Failed to get coin from group.");
+            }
+        }
+    }
+
+    static handlePlayerCoinCollect(
+        scene: Phaser.Scene,
+        coinsGroup: Phaser.Physics.Arcade.Group,
+        player: Phaser.GameObjects.GameObject,
+        coin: Phaser.GameObjects.GameObject
+    ) {
+        if (!(coin instanceof Coin) || !coin.active || !player.active) {
+            return;
+        }
+
+        let coinValue = 1;
+        const currentRelics = scene.registry.get("relics") as string[];
+        if (currentRelics.includes("prospectors-pendant")) {
+            coinValue = Math.ceil(coinValue * 1.25);
+        }
+
+        const currentCoins = scene.registry.get("coins") as number;
+        scene.registry.set("coins", currentCoins + coinValue);
+
+        // Update total coins collected in the game scene
+        let totalCoinsCollected =
+            (scene.registry.get("totalCoinsCollected") as number) || 0;
+        totalCoinsCollected += coinValue;
+        scene.registry.set("totalCoinsCollected", totalCoinsCollected);
+
+        EventBus.emit("stats-changed");
+
+        coinsGroup.killAndHide(coin);
+        if (coin.body) {
+            (coin.body as Phaser.Physics.Arcade.Body).enable = false;
+        }
+
+        if (scene.sound.get("coin_collect")) {
+            scene.sound.play("coin_collect", { volume: 0.4 });
+        } else {
+            console.warn("Coin collect sound not ready or not loaded.");
+        }
+    }
 }
 

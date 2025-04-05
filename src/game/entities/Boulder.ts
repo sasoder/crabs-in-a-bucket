@@ -13,7 +13,14 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         this.setBounce(0.1);
         this.setGravityY(300); // Adjust gravity as needed
         this.setImmovable(false); // They should be pushable/affected by physics
-        this.body?.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.8); // Slightly smaller collider
+
+        // Make the boulder circular
+        const radius = TILE_SIZE * 0.4; // Adjust radius as needed
+        this.body?.setCircle(
+            radius,
+            (this.width - radius * 2) / 2, // Center the circle body
+            (this.height - radius * 2) / 2
+        );
     }
 
     // Boulders might have specific behaviors later

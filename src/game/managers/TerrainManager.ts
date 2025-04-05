@@ -5,6 +5,7 @@ import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
 import { BlockConfig } from "../types/BlockConfig";
 import { EventBus } from "../EventBus"; // Import EventBus
+import { Coin } from "../entities/Coin";
 
 // --- Configuration for Block Types (Simplified) ---
 const blockConfigs: Record<BlockType, BlockConfig | null> = {
@@ -40,6 +41,8 @@ export class TerrainManager {
     private generatedRowsMaxY: number = 0;
     private bouldersGroup: Phaser.Physics.Arcade.Group;
     private enemiesGroup: Phaser.Physics.Arcade.Group;
+    private coinsGroup?: Phaser.Physics.Arcade.Group;
+    private particleManager?: any;
 
     // Map dimensions (adjust as needed)
     private mapWidth = 50; // Increased width for more space
@@ -61,11 +64,15 @@ export class TerrainManager {
     constructor(
         scene: Phaser.Scene,
         bouldersGroup: Phaser.Physics.Arcade.Group,
-        enemiesGroup: Phaser.Physics.Arcade.Group
+        enemiesGroup: Phaser.Physics.Arcade.Group,
+        coinsGroup?: Phaser.Physics.Arcade.Group,
+        particleManager?: any
     ) {
         this.scene = scene;
         this.bouldersGroup = bouldersGroup;
         this.enemiesGroup = enemiesGroup;
+        this.coinsGroup = coinsGroup;
+        this.particleManager = particleManager;
 
         // Create the map instance
         this.map = this.scene.make.tilemap({
@@ -219,14 +226,14 @@ export class TerrainManager {
                 `Dug block at [${tileX}, ${tileY}], type: ${BlockType[blockType]}`
             );
 
-            // Emit event with relevant data
-            EventBus.emit("block-destroyed", {
-                worldX: tileToRemove.pixelX, // Use tile's pixel coords for accurate spawning
-                worldY: tileToRemove.pixelY,
-                blockType: blockType,
-                baseCoinChance: baseCoinChance,
-                textureKey: textureKey, // Pass texture key for particles
-            });
+            // Handle block destruction effects
+            this.handleBlockDestroyed(
+                tileToRemove.pixelX,
+                tileToRemove.pixelY,
+                blockType,
+                baseCoinChance,
+                textureKey
+            );
 
             result = { textureKey: textureKey, blockType: blockType };
         } else {
@@ -237,6 +244,52 @@ export class TerrainManager {
         }
 
         return result; // Return texture key and block type
+    }
+
+    public handleBlockDestroyed(
+        worldX: number,
+        worldY: number,
+        blockType: BlockType,
+        baseCoinChance: number,
+        textureKey: string | null
+    ) {
+        // Show particles if particle manager exists
+        if (textureKey && this.particleManager) {
+            this.particleManager.triggerParticles(textureKey, worldX, worldY);
+        }
+
+        // Handle coin spawning
+        let finalCoinChance = baseCoinChance;
+        const currentRelics = this.scene.registry.get("relics") as string[];
+        if (currentRelics.includes("excavators-greed")) {
+            finalCoinChance += 0.05;
+        }
+
+        if (finalCoinChance > 0 && Math.random() < finalCoinChance) {
+            this.spawnCoin(worldX, worldY);
+        }
+
+        if (blockType === BlockType.GOLD) {
+            this.spawnCoin(worldX, worldY, 3);
+        }
+
+        // Emit event with relevant data for other systems to react to
+        EventBus.emit("block-destroyed", {
+            worldX: worldX,
+            worldY: worldY,
+            blockType: blockType,
+            baseCoinChance: baseCoinChance,
+            textureKey: textureKey,
+        });
+    }
+
+    private spawnCoin(worldX: number, worldY: number, count: number = 1) {
+        if (!this.coinsGroup) {
+            console.warn("Cannot spawn coin: coins group not initialized");
+            return;
+        }
+
+        Coin.spawn(this.scene, this.coinsGroup, worldX, worldY, count);
     }
 
     public getBlockConfigFromTile(
@@ -404,6 +457,15 @@ export class TerrainManager {
         // Alternatively, be explicit about colliding tiles:
         // this.groundLayer.setCollision([BlockType.DIRT, BlockType.STONE, BlockType.GOLD]);
         console.log("Updated ground layer collision (Dirt, Stone, Gold).");
+    }
+
+    public handleCreateExplosion(data: {
+        worldX: number;
+        worldY: number;
+        radius: number;
+    }) {
+        console.warn("Explosion handling not yet implemented.", data);
+        // Implementation for causing an explosion that destroys multiple blocks in an area
     }
 }
 
