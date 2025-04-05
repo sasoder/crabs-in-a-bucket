@@ -76,6 +76,8 @@ export default class Preloader extends Phaser.Scene {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,
         });
+        // Add boulder image
+        this.load.image("boulder", "assets/entities/boulder.png");
         // this.load.audio('jumpSound', 'assets/audio/jump.wav');
         // this.load.audio('coinSound', 'assets/audio/coin.wav');
         // ... load all other assets needed by the Game scene ...

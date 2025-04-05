@@ -47,7 +47,7 @@ export class TerrainManager {
     private blockHealth: Map<string, number> = new Map();
 
     // Map dimensions (adjust as needed)
-    private mapWidth = 50; // Increased width for more space
+    private mapWidth = 30; // Increased width for more space
     private mapHeight = 500; // Keep reasonable height for performance
 
     // --- Generation Parameters (Tunable) ---

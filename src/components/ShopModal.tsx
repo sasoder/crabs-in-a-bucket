@@ -14,7 +14,6 @@ import { RELICS as AllRelicsData } from "@/game/data/Relics";
 import type { Consumable } from "@/game/data/Consumables";
 import { CONSUMABLES as AllConsumablesData } from "@/game/data/Consumables";
 import ItemDisplay from "./ItemDisplay"; // Import the reusable component
-import { Separator } from "@/components/ui/separator"; // For visual separation
 import { cn } from "@/lib/utils";
 import Coin from "./Coin";
 

@@ -9,6 +9,7 @@ import { Enemy } from "../entities/Enemy";
 import { Coin } from "../entities/Coin";
 import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
+import { EnemyManager } from "../managers/EnemyManager";
 
 export default class Game extends Phaser.Scene {
     private player?: Player;
@@ -25,6 +26,7 @@ export default class Game extends Phaser.Scene {
     private particleManager!: ParticleManager;
     private terrainManager!: TerrainManager;
     private shopManager!: ShopManager;
+    private enemyManager!: EnemyManager;
     private bouldersGroup!: Phaser.Physics.Arcade.Group;
     private enemiesGroup!: Phaser.Physics.Arcade.Group;
     private coinsGroup!: Phaser.Physics.Arcade.Group;
@@ -42,15 +44,6 @@ export default class Game extends Phaser.Scene {
     preload() {
         this.textureManager = new TextureManager(this);
         this.textureManager.generateAllTextures();
-
-        this.load.image("boulder", "assets/entities/boulder.png");
-        this.load.image("enemy", "assets/entities/enemy.png");
-        this.load.spritesheet("player", "assets/entities/player.png", {
-            frameWidth: 16,
-            frameHeight: 32,
-        });
-
-        this.load.audio("coin_collect", "assets/audio/coin_collect.wav");
     }
 
     create() {
@@ -70,20 +63,24 @@ export default class Game extends Phaser.Scene {
 
         this.bouldersGroup = this.physics.add.group({
             classType: Boulder,
-            runChildUpdate: false,
+            runChildUpdate: true,
             collideWorldBounds: false,
             allowGravity: true,
             gravityY: 200,
             bounceY: 0.1,
             dragX: 50,
         });
+
+        // Set a name for the boulders group for easier identification
+        this.bouldersGroup.name = "bouldersGroup";
+
         this.enemiesGroup = this.physics.add.group({
             classType: Enemy,
             runChildUpdate: true,
             collideWorldBounds: true,
             allowGravity: true,
             gravityY: 300,
-            dragX: 100,
+            dragX: 0,
             bounceX: 0.1,
         });
         this.coinsGroup = this.physics.add.group({
@@ -112,6 +109,9 @@ export default class Game extends Phaser.Scene {
         );
         this.shopManager = new ShopManager(this, this.registry);
 
+        // Initialize enemy manager to handle spawning
+        this.enemyManager = new EnemyManager(this, this.enemiesGroup);
+
         this.terrainManager.generateInitialChunk();
         const groundLayer = this.terrainManager.getGroundLayer();
         const map = this.terrainManager.getMap();
@@ -132,11 +132,27 @@ export default class Game extends Phaser.Scene {
         const spawnPoint = this.terrainManager.getInitialSpawnPoint();
         this.player = new Player(this, spawnPoint.x, spawnPoint.y);
 
+        // Set player name for reference by EnemyManager
+        this.player.setName("player");
+
         this.physics.add.collider(this.player, groundLayer);
         this.physics.add.collider(this.bouldersGroup, groundLayer);
         this.physics.add.collider(this.enemiesGroup, groundLayer);
         this.physics.add.collider(this.coinsGroup, groundLayer);
         this.physics.add.collider(this.bouldersGroup, this.bouldersGroup);
+
+        // Add collider between enemies to prevent stacking
+        this.physics.add.collider(this.enemiesGroup, this.enemiesGroup);
+
+        // Add collider between boulders and enemies
+        this.physics.add.collider(
+            this.bouldersGroup,
+            this.enemiesGroup,
+            this
+                .handleBoulderEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            undefined,
+            this
+        );
 
         this.physics.add.overlap(
             this.player,
@@ -431,6 +447,9 @@ export default class Game extends Phaser.Scene {
         if (this.particleManager) {
             this.particleManager.destroyEmitters();
         }
+        if (this.enemyManager) {
+            this.enemyManager.cleanup();
+        }
 
         this.removeEventListeners();
 
@@ -464,11 +483,19 @@ export default class Game extends Phaser.Scene {
         this.particleManager = undefined!;
         this.terrainManager = undefined!;
         this.shopManager = undefined!;
+        this.enemyManager = undefined!;
         this.bouldersGroup = undefined!;
         this.enemiesGroup = undefined!;
         this.coinsGroup = undefined!;
 
         console.log("Game scene shutdown complete.");
+    }
+
+    private handleBoulderEnemyCollision(boulderObj: any, enemyObj: any) {
+        if (boulderObj instanceof Boulder && enemyObj instanceof Enemy) {
+            return enemyObj.handleBoulderCollision(boulderObj);
+        }
+        return false;
     }
 }
 
