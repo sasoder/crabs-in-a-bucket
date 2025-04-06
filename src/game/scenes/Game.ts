@@ -182,14 +182,13 @@ export default class Game extends Phaser.Scene {
         // Get spike group from terrain manager and add collisions if it exists
         const spikesGroup = this.terrainManager.getSpikesGroup();
         if (spikesGroup) {
-            // Set collision but use a more generic physics callback approach
-            this.physics.add.collider(
-                this.player,
-                spikesGroup,
-                this.handlePlayerSpikeCollision,
-                undefined,
-                this
-            );
+            // Just use standard colliders without custom callbacks
+            this.physics.add.collider(this.player, spikesGroup);
+            this.physics.add.collider(this.enemiesGroup, spikesGroup);
+            this.physics.add.collider(spikesGroup, spikesGroup);
+            this.physics.add.collider(spikesGroup, this.bouldersGroup);
+            this.physics.add.collider(spikesGroup, this.tntGroup);
+            this.physics.add.collider(spikesGroup, this.rowColliderGroup);
         }
 
         // Add player collision with TNT
@@ -273,6 +272,18 @@ export default class Game extends Phaser.Scene {
             undefined,
             this
         );
+
+        // Add custom handler for enemy-spike collisions
+        if (spikesGroup) {
+            this.physics.add.collider(
+                this.enemiesGroup,
+                spikesGroup,
+                this
+                    .handleEnemySpikeCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+                undefined,
+                this
+            );
+        }
     }
 
     private handlePlayerBoulderCollision(
@@ -838,27 +849,57 @@ export default class Game extends Phaser.Scene {
     }
 
     /**
-     * Handle player collision with spikes
+     * Handle an enemy colliding with a spike
      */
-    private handlePlayerSpikeCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-        (object1, object2) => {
-            if (!this.player || !this.player.active) return;
+    handleEnemySpikeCollision(
+        object1:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        object2:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        let enemy: Enemy | null = null;
+        let spike: Spike | null = null;
 
-            // Check if player is invulnerable
-            if (!this.player.isInvulnerable) {
-                this.player.takeDamage(1);
-            }
+        if (object1 instanceof Enemy && object2 instanceof Spike) {
+            enemy = object1;
+            spike = object2;
+        } else if (object1 instanceof Spike && object2 instanceof Enemy) {
+            spike = object1;
+            enemy = object2;
+        }
 
-            // Damage the spike if we can identify it
-            const spike =
-                object1 instanceof Spike
-                    ? object1
-                    : object2 instanceof Spike
-                    ? object2
-                    : null;
-            if (spike && spike.active) {
-                spike.takeDamage(1);
-            }
-        };
+        if (!enemy || !spike || !enemy.active || !spike.active) {
+            return;
+        }
+
+        // Check if enemy is landing on the spike (velocity is downward)
+        const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+        const spikeBody = spike.body as Phaser.Physics.Arcade.Body;
+
+        if (
+            enemyBody.velocity.y > 0 &&
+            enemyBody.bottom >= spikeBody.top &&
+            enemyBody.y - enemyBody.deltaY() < spikeBody.top
+        ) {
+            // Enemy is landing on the spike, apply damage
+            enemy.handleSpikeDamage(spike);
+        } else {
+            // Enemy is hitting spike from the side, just change direction and apply small knockback
+            enemy.changeDirection();
+
+            // Apply a small knockback in the opposite direction
+            const knockbackForce = 100;
+            const knockbackY = -120; // Small upward bounce
+
+            // Determine horizontal direction based on enemy's current direction
+            const knockbackX =
+                enemy.x < spike.x ? -knockbackForce : knockbackForce;
+
+            // Apply the knockback velocity
+            enemy.setVelocity(knockbackX, knockbackY);
+        }
+    }
 }
 

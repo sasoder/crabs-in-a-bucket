@@ -122,6 +122,35 @@ export class Enemy extends BaseGameEntity {
         }
     }
 
+    /**
+     * Handle enemy falling onto spikes
+     * @param spikeObject The spike that damaged this enemy
+     * @returns true if damage was applied
+     */
+    handleSpikeDamage(spikeObject: Phaser.GameObjects.GameObject): boolean {
+        if (!this.active) return false;
+
+        // Apply damage and knockback
+        this.takeDamage(1);
+
+        // Provide more visual/audio feedback for spike damage
+        if (this.active) {
+            // If enemy survived the damage
+            // Flash red
+            this.setTint(0xff0000);
+            this.scene.time.delayedCall(150, () => {
+                if (this.active) this.clearTint();
+            });
+
+            // Play a hit sound if available
+            if (this.gameScene.sound) {
+                this.gameScene.sound.play("hit");
+            }
+        }
+
+        return true;
+    }
+
     handleBoulderCollision(boulder: Boulder): boolean {
         if (!this.active || !boulder.active) return false;
 

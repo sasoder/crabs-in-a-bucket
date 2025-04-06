@@ -20,8 +20,8 @@ export class TerrainManager {
     private generatedRowsMaxY: number = 0;
     private bouldersGroup: Phaser.Physics.Arcade.Group;
     private enemiesGroup: Phaser.Physics.Arcade.Group;
-    // Revert spikesGroup type to Physics Group
-    private spikesGroup?: Phaser.Physics.Arcade.Group;
+    // Change spikesGroup type to StaticGroup
+    private spikesGroup?: Phaser.Physics.Arcade.StaticGroup;
     private coinsGroup?: Phaser.Physics.Arcade.Group;
     private particleManager?: ParticleManager; // Assuming ParticleManager exists
 
@@ -68,12 +68,10 @@ export class TerrainManager {
         this.coinsGroup = coinsGroup;
         this.particleManager = particleManager;
 
-        // Revert to using a Physics Group for spikes
-        this.spikesGroup = this.scene.physics.add.group({
+        // Initialize spikesGroup as a StaticGroup
+        this.spikesGroup = this.scene.physics.add.staticGroup({
             classType: Spike,
-            // Spikes are now dynamic but configured to be immovable & no gravity in their constructor
-            allowGravity: false, // Optional, but reinforces intent
-            immovable: true, // Optional, but reinforces intent
+            // No need for physics properties here for static group
         });
 
         // --- Initialize new groups ---
@@ -88,40 +86,18 @@ export class TerrainManager {
 
         console.log("TerrainManager initialized for row-based system.");
 
-        // Add collision between spikes and the row colliders
-        // This should now work correctly with dynamic, immovable spikes in a physics group
-        this.scene.physics.add.collider(
-            this.spikesGroup,
-            this.rowColliderGroup
-        );
-
-        // Add collision between spikes and boulders
-        this.scene.physics.add.collider(
-            this.spikesGroup,
-            this.bouldersGroup,
-            this.handleSpikeBoulderCollision,
-            undefined,
-            this
-        );
+        // Remove collision between spikes and row colliders (spikes are static)
     }
 
-    // --- Update the spikes group getter return type ---
-    public getSpikesGroup(): Phaser.Physics.Arcade.Group | undefined {
+    // --- NEW: Return the collider group ---
+    public getRowColliderGroup(): Phaser.Physics.Arcade.StaticGroup {
+        return this.rowColliderGroup;
+    }
+
+    // Return spikes group (updated type)
+    public getSpikesGroup(): Phaser.Physics.Arcade.StaticGroup | undefined {
         return this.spikesGroup;
     }
-
-    // --- NEW: Handle spike-boulder collision ---
-    private handleSpikeBoulderCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-        (object1, object2) => {
-            const spike =
-                object1 instanceof Spike ? object1 : (object2 as Spike);
-            const boulder =
-                object1 instanceof Boulder ? object1 : (object2 as Boulder);
-
-            if (spike && boulder) {
-                spike.handleBoulderCollision(boulder);
-            }
-        };
 
     // --- NEW: Public getters for dimensions ---
     public getMapWidthPixels(): number {
@@ -132,13 +108,6 @@ export class TerrainManager {
         return this.mapHeightPixels;
     }
     // --- END NEW ---
-
-    // --- NEW: Return the collider group ---
-    public getRowColliderGroup(): Phaser.Physics.Arcade.StaticGroup {
-        return this.rowColliderGroup;
-    }
-    // --- REMOVED getGroundLayer ---
-    // --- REMOVED getMap ---
 
     public getInitialSpawnPoint(): { x: number; y: number } {
         // Spawn player slightly above the first platform row
@@ -213,23 +182,18 @@ export class TerrainManager {
                 this.rowVisuals.delete(targetTileY);
             }
 
-            // Damage any spikes on this row
+            // Damage static spikes directly on this row when it's cleared
             if (this.spikesGroup) {
-                // Iterate safely over a copy of the children array
-                const spikesToCheck = [...this.spikesGroup.getChildren()];
-                spikesToCheck.forEach((spikeGO) => {
+                this.spikesGroup.getChildren().forEach((spikeGO) => {
                     const spike = spikeGO as Spike;
-                    // Ensure spike is still active and part of the group before proceeding
-                    if (!spike.active || !this.spikesGroup?.contains(spike)) {
-                        return;
-                    }
-                    const spikeRowY = spike.getData("rowY");
-                    // console.log(`Checking spike at [${spike.x.toFixed(0)}, ${spike.y.toFixed(0)}] with stored rowY=${spikeRowY} against targetTileY=${targetTileY}`);
-                    if (spikeRowY === targetTileY) {
-                        console.log(
-                            `Damaging spike on cleared row ${targetTileY}`
-                        );
-                        spike.takeDamage(1); // Destroy spike when its row is cleared
+                    if (!spike.active) return;
+
+                    // Check if the spike's origin Y is within the cleared row's bounds
+                    // Static spikes are placed with origin at top-center of tile space
+                    const spikeTileY = Math.floor(spike.y / TILE_SIZE);
+
+                    if (spikeTileY === targetTileY) {
+                        spike.takeDamage(1); // Damage spike when its row is cleared
                     }
                 });
             }
@@ -310,6 +274,8 @@ export class TerrainManager {
         // 3. Spawn Entities *ON* the newly generated row's surface
         // Use the collider's Y position as the surface reference
         const spawnSurfaceY = worldY + colliderYOffset - colliderHeight / 2; // Surface is top of collider
+        // Adjust spike spawn Y to place its origin at the top-center of the tile space
+        const spikeSpawnY = worldY;
 
         if (tileY <= this.initialPlatformRows) return; // Don't spawn on initial platform rows
 
@@ -333,32 +299,34 @@ export class TerrainManager {
             // Check if space is occupied (crude check, could improve)
             // This is a basic check, might need refinement if entities overlap badly
             let spaceOccupied = false;
-            this.bouldersGroup.getChildren().forEach((go) => {
-                if (
-                    go.body &&
-                    Math.abs(go.body.position.x - spawnWorldX) < TILE_SIZE &&
-                    Math.abs(go.body.position.y - spawnSurfaceY) < TILE_SIZE
-                )
-                    spaceOccupied = true;
-            });
-            this.enemiesGroup.getChildren().forEach((go) => {
-                if (
-                    go.body &&
-                    Math.abs(go.body.position.x - spawnWorldX) < TILE_SIZE &&
-                    Math.abs(go.body.position.y - spawnSurfaceY) < TILE_SIZE
-                )
-                    spaceOccupied = true;
-            });
-            if (this.spikesGroup) {
-                this.spikesGroup.getChildren().forEach((go) => {
+            // Need to check spikes group too now for occupancy
+            const checkRadius = TILE_SIZE * 0.8; // Check slightly smaller than tile
+            const groupsToCheck = [
+                this.bouldersGroup,
+                this.enemiesGroup,
+                this.spikesGroup,
+                this.coinsGroup,
+            ];
+
+            for (const group of groupsToCheck) {
+                if (!group) continue;
+                group.getChildren().forEach((go) => {
+                    const body = go.body as
+                        | Phaser.Physics.Arcade.Body
+                        | Phaser.Physics.Arcade.StaticBody;
                     if (
-                        go.body &&
-                        Math.abs(go.body.position.x - spawnWorldX) <
-                            TILE_SIZE &&
-                        Math.abs(go.body.position.y - spawnSurfaceY) < TILE_SIZE
-                    )
+                        body &&
+                        Math.abs(
+                            body.position.x + body.offset.x - spawnWorldX
+                        ) < checkRadius &&
+                        Math.abs(
+                            body.position.y + body.offset.y - spawnSurfaceY
+                        ) < checkRadius
+                    ) {
                         spaceOccupied = true;
+                    }
                 });
+                if (spaceOccupied) break;
             }
 
             if (spaceOccupied) continue; // Skip spawning if something is already there
@@ -382,14 +350,15 @@ export class TerrainManager {
                 spaceOccupied = true; // Mark space as occupied
             } else if (Math.random() < currentSpikeChance) {
                 if (this.spikesGroup) {
-                    // Place spikes directly on the row surface
+                    // Create spike - it adds itself to physics/scene
+                    // Spawn Y adjusted to place origin at top of the row tile space
                     const spike = new Spike(
                         this.scene,
                         spawnWorldX,
-                        spawnSurfaceY - TILE_SIZE / 2 // Position spike center slightly above surface
+                        spikeSpawnY - TILE_SIZE / 2
                     );
+                    // Add to the static group (doesn't happen automatically for static groups)
                     this.spikesGroup.add(spike);
-                    spike.setData("rowY", tileY); // Store the row this spike belongs to
                     spaceOccupied = true; // Mark space as occupied
                 }
             }
@@ -466,21 +435,19 @@ export class TerrainManager {
             }
         });
 
-        // Damage Spikes
+        // Damage Spikes - Use direct distance check
         this.spikesGroup?.getChildren().forEach((spikeGO) => {
             const spike = spikeGO as Spike;
             if (!spike.active) return;
 
-            // Check if the spike's row is within the blast radius
-            const spikeRowY = spike.getData("rowY");
-            const rowWorldY = spikeRowY * TILE_SIZE;
-            const yDist = explosionWorldY - (rowWorldY + TILE_SIZE / 2);
+            const distSq = Phaser.Math.Distance.Squared(
+                explosionWorldX,
+                explosionWorldY,
+                spike.x, // Spike's position
+                spike.y
+            );
 
-            // Check horizontal distance
-            const xDist = explosionWorldX - spike.x;
-
-            // If within blast radius
-            if (xDist * xDist + yDist * yDist <= radiusSq) {
+            if (distSq <= radiusSq) {
                 spike.takeDamage(1); // Kill spike in explosion
             }
         });
@@ -509,6 +476,8 @@ export class TerrainManager {
         this.rowVisuals.clear();
         this.rowColliderGroup.destroy(true); // Destroy children
         this.rowVisualsGroup.destroy(true); // Destroy children
+        // Destroy spike group too
+        this.spikesGroup?.destroy(true);
         console.log("TerrainManager destroyed.");
     }
 

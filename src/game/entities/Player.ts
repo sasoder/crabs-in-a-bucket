@@ -73,6 +73,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const checkWorldX = this.x;
         // Check slightly below the player's bottom center
         const checkWorldY = this.body!.bottom + 1; // Check just below feet
+        this.gameScene.particleManager.triggerParticles(
+            "dirt_tile",
+            this.x,
+            this.y + this.height / 2,
+            { count: 3 }
+        );
 
         // Access terrainManager through the typed scene reference
         const rowCleared =

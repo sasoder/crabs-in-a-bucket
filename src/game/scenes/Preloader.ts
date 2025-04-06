@@ -73,6 +73,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.image("slayer", "assets/relics/slayer.png");
         this.load.image("spikes", "assets/entities/spikes.png");
         this.load.image("geode", "assets/consumables/geode.png");
+        this.load.image("drill", "assets/relics/drill.png");
         this.load.spritesheet("player", "assets/entities/player.png", {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,

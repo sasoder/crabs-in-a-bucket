@@ -12,12 +12,20 @@ export const RELICS: Record<string, Relic> = {
     STEEL_BOOTS: {
         id: "STEEL_BOOTS",
         name: "Steel Boots",
-        effect: "Dig Depth +1",
-        description:
-            "Your jump dig destroys blocks one layer deeper than normal.",
+        effect: "Enemy Bonk",
+        description: "Your can jump on enemies to damage them.",
         spriteKey: "steel_boots",
         cost: 25,
         allowDuplicates: false,
+    },
+    DRILL: {
+        id: "DRILL",
+        name: "Drill",
+        effect: "Dig Depth +1",
+        description: "Your dig destroys blocks one layer deeper than normal.",
+        spriteKey: "drill",
+        cost: 25,
+        allowDuplicates: true,
     },
     FEATHER_WEIGHT: {
         id: "FEATHER_WEIGHT",
@@ -40,7 +48,7 @@ export const RELICS: Record<string, Relic> = {
     SLAYER: {
         id: "SLAYER",
         name: "Slayer",
-        effect: "Enemy kill reward +2",
+        effect: "Enemy Kill reward +2",
         description: "Gain +2 coins for every enemy killed.",
         spriteKey: "slayer",
         cost: 15,
