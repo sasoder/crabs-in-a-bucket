@@ -20,9 +20,9 @@ const RelicDisplay: React.FC<RelicDisplayProps> = ({ relicIds }) => {
 
     return (
         <div className="flex space-x-1 items-center">
-            {relicsToDisplay.map((relic) => (
+            {relicsToDisplay.map((relic, index) => (
                 <ItemDisplay
-                    key={relic.id}
+                    key={relic.id + "relic" + index}
                     item={relic}
                     itemTypeOverride="relic" // Specify the type
                     size="lg" // Use smaller size for the HUD display

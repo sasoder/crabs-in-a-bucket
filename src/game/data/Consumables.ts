@@ -6,6 +6,7 @@ export interface Consumable {
     effect: string;
     spriteKey: string; // Filename for the icon (e.g., 'heart_root.png')
     cost: number; // How much it costs in the shop
+    isEntity: boolean;
 }
 
 export const CONSUMABLES: { [key: string]: Consumable } = {
@@ -16,22 +17,25 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         effect: "Instantly restores 1 lost life.",
         spriteKey: "heart",
         cost: 15,
+        isEntity: false,
     },
     GEODE: {
         id: "GEODE",
         name: "Geode",
         description: "Crack it open and see what's inside.",
         effect: "Earn a random amount of coins.",
-        spriteKey: "coin",
+        spriteKey: "geode",
         cost: 5,
+        isEntity: false,
     },
     TNT: {
         id: "TNT",
         name: "TNT",
-        description: "A bundle of TNT.",
-        effect: "Explodes and damages enemies in a small area.",
+        description: "A bundle of TNT with a 5 second fuse.",
+        effect: "Explodes after 5 seconds, destroying terrain and damaging enemies.",
         spriteKey: "tnt",
         cost: 10,
+        isEntity: true,
     },
     BOULDER: {
         id: "BOULDER",
@@ -40,6 +44,7 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         effect: "Place a boulder on the ground.",
         spriteKey: "boulder",
         cost: 3,
+        isEntity: true,
     },
 };
 

@@ -10,10 +10,13 @@ import { Coin } from "../entities/Coin";
 import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
 import { EnemyManager } from "../managers/EnemyManager";
+import { CONSUMABLES } from "../data/Consumables";
+import { TNT } from "../entities/TNT";
 
 export default class Game extends Phaser.Scene {
     public player?: Player;
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
+    private keySpace?: Phaser.Input.Keyboard.Key;
     private TILE_SIZE = TILE_SIZE;
 
     private currentDepth = 0;
@@ -31,6 +34,7 @@ export default class Game extends Phaser.Scene {
     public bouldersGroup!: Phaser.Physics.Arcade.Group;
     public enemiesGroup!: Phaser.Physics.Arcade.Group;
     public coinsGroup!: Phaser.Physics.Arcade.Group;
+    public tntGroup!: Phaser.Physics.Arcade.Group;
     private rowColliderGroup!: Phaser.Physics.Arcade.StaticGroup;
 
     // Background gradient properties
@@ -50,6 +54,9 @@ export default class Game extends Phaser.Scene {
 
     create() {
         this.cursors = this.input.keyboard?.createCursorKeys();
+        this.keySpace = this.input.keyboard?.addKey(
+            Phaser.Input.Keyboard.KeyCodes.SPACE
+        );
 
         this.currentDepth = 0;
         this.maxDepthReached = 0;
@@ -129,6 +136,17 @@ export default class Game extends Phaser.Scene {
         this.player = new Player(this, spawnPoint.x, spawnPoint.y);
         this.player.setName("player");
 
+        // Create TNT group
+        this.tntGroup = this.physics.add.group({
+            classType: TNT,
+            runChildUpdate: true,
+            collideWorldBounds: true,
+            allowGravity: true,
+            gravityY: 300,
+            bounceY: 0.2,
+        });
+        this.tntGroup.name = "tntGroup";
+
         // Set up collision handling in a more declarative way
         this.setupCollisions();
 
@@ -136,7 +154,6 @@ export default class Game extends Phaser.Scene {
         this.cameras.main.setZoom(2);
 
         this.registry.set("lives", 3);
-        this.registry.set("maxLives", 3);
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [] as string[]);
@@ -159,6 +176,14 @@ export default class Game extends Phaser.Scene {
         this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup);
         this.physics.add.collider(this.enemiesGroup, this.rowColliderGroup);
         this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
+        this.physics.add.collider(this.tntGroup, this.rowColliderGroup);
+
+        // Add player collision with TNT
+        this.physics.add.collider(this.player, this.tntGroup);
+
+        // Add TNT collisions with other entities
+        this.physics.add.collider(this.tntGroup, this.bouldersGroup);
+        this.physics.add.collider(this.tntGroup, this.enemiesGroup);
 
         // Collisions between physics groups - Add boulder collision handler
         this.physics.add.collider(
@@ -287,6 +312,7 @@ export default class Game extends Phaser.Scene {
             },
             this
         );
+        EventBus.on("use-consumable-requested", this.useConsumable, this);
 
         console.log("Game Scene Event Listeners Setup.");
     }
@@ -302,6 +328,7 @@ export default class Game extends Phaser.Scene {
         EventBus.off("dirt-row-cleared", undefined, this);
         EventBus.off("player-dig", undefined, this);
         EventBus.off("place-bomb", undefined, this);
+        EventBus.off("use-consumable-requested", this.useConsumable, this);
 
         console.log("Game Scene Event Listeners Removed.");
     }
@@ -348,6 +375,7 @@ export default class Game extends Phaser.Scene {
     update(time: number, delta: number) {
         if (
             !this.cursors ||
+            !this.keySpace ||
             !this.player ||
             !this.player.body ||
             !this.scene.isActive()
@@ -356,6 +384,10 @@ export default class Game extends Phaser.Scene {
         }
 
         this.player.update(this.cursors, time, delta);
+
+        if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+            this.useConsumable();
+        }
 
         const playerFeetY = this.player.body.bottom;
         const calculatedDepth = Math.max(
@@ -521,6 +553,9 @@ export default class Game extends Phaser.Scene {
         if (this.coinsGroup) {
             this.coinsGroup.destroy(true);
         }
+        if (this.tntGroup) {
+            this.tntGroup.destroy(true);
+        }
         if (this.rowColliderGroup) {
             this.rowColliderGroup.destroy(true);
         }
@@ -541,6 +576,7 @@ export default class Game extends Phaser.Scene {
         }
 
         this.cursors = undefined;
+        this.keySpace = undefined;
         this.textureManager = undefined!;
         this.particleManager = undefined!;
         this.terrainManager = undefined!;
@@ -549,6 +585,7 @@ export default class Game extends Phaser.Scene {
         this.bouldersGroup = undefined!;
         this.enemiesGroup = undefined!;
         this.coinsGroup = undefined!;
+        this.tntGroup = undefined!;
         this.rowColliderGroup = undefined!;
 
         console.log("Game scene shutdown complete.");
@@ -668,5 +705,115 @@ export default class Game extends Phaser.Scene {
                 }
             }
         };
+
+    /**
+     * Handles the logic for using the LAST acquired (newest) consumable.
+     */
+    private useConsumable(): void {
+        if (!this.player || !this.player.active) return;
+
+        const currentConsumables = [
+            ...(this.registry.get("consumables") as string[]),
+        ];
+        if (currentConsumables.length === 0) {
+            console.log("No consumables to use.");
+            return;
+        }
+
+        // Use the LAST item (LIFO stack behavior)
+        const consumableIdToUse =
+            currentConsumables[currentConsumables.length - 1];
+        const consumableData = CONSUMABLES[consumableIdToUse];
+
+        if (!consumableData) {
+            console.warn(`Unknown consumable ID: ${consumableIdToUse}`);
+            currentConsumables.pop(); // Remove the unknown consumable from the end
+            this.registry.set("consumables", currentConsumables);
+            EventBus.emit("stats-changed"); // Update UI
+            return;
+        }
+
+        console.log(
+            `Attempting to use newest consumable: ${consumableData.name}`
+        );
+        let usedSuccessfully = false;
+
+        // --- Apply Consumable Effects ---
+        switch (consumableIdToUse) {
+            case "HEART_ROOT":
+                usedSuccessfully = this.player.heal(1);
+                break;
+            case "GEODE":
+                // Give player random amount of coins (3-15)
+                const coinAmount = Phaser.Math.Between(3, 15);
+                const currentCoins = this.registry.get("coins") as number;
+                this.registry.set("coins", currentCoins + coinAmount);
+
+                // Update total coins collected
+                let totalCoinsCollected =
+                    (this.registry.get("totalCoinsCollected") as number) || 0;
+                totalCoinsCollected += coinAmount;
+                this.registry.set("totalCoinsCollected", totalCoinsCollected);
+
+                // Play coin sound
+                this.sound.play("collectcoin");
+
+                usedSuccessfully = true;
+                EventBus.emit("stats-changed"); // Update UI
+                break;
+            case "BOULDER":
+                if (this.player && this.bouldersGroup) {
+                    // Place boulder at player's feet
+                    const playerX =
+                        Math.floor(this.player.x / TILE_SIZE) * TILE_SIZE;
+                    const playerY =
+                        Math.floor(
+                            (this.player.y + this.player.height / 2) / TILE_SIZE
+                        ) * TILE_SIZE;
+
+                    // Create the boulder entity
+                    this.bouldersGroup.add(new Boulder(this, playerX, playerY));
+
+                    usedSuccessfully = true;
+                }
+                break;
+            case "TNT":
+                if (this.player && this.tntGroup) {
+                    // Place TNT at player's feet
+                    const playerX =
+                        Math.floor(this.player.x / TILE_SIZE) * TILE_SIZE;
+                    const playerY =
+                        Math.floor(
+                            (this.player.y + this.player.height / 2) / TILE_SIZE
+                        ) * TILE_SIZE;
+
+                    // Create the TNT entity
+                    this.tntGroup.add(new TNT(this, playerX, playerY));
+
+                    usedSuccessfully = true;
+                }
+                break;
+            default:
+                console.warn(
+                    `No action defined for consumable: ${consumableIdToUse}`
+                );
+                usedSuccessfully = false;
+        }
+
+        // --- Remove from Inventory if Used Successfully ---
+        if (usedSuccessfully) {
+            currentConsumables.pop(); // Remove the LAST item
+            this.registry.set("consumables", currentConsumables);
+            console.log(
+                `Used ${consumableData.name}. Remaining:`,
+                currentConsumables
+            );
+            EventBus.emit("stats-changed"); // Update UI after using consumable
+        } else {
+            console.log(
+                `Failed to use ${consumableData.name} (e.g., already at max health).`
+            );
+        }
+    }
 }
 

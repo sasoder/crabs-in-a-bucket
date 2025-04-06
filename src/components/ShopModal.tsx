@@ -123,8 +123,10 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         }
     };
 
-    const handlePurchase = (item: Relic | Consumable) => {
-        const itemType = "cost" in item ? "consumable" : "relic";
+    const handlePurchase = (
+        item: Relic | Consumable,
+        itemType: "relic" | "consumable"
+    ) => {
         const cost = getItemCost(item);
         if (playerCoins >= cost && !purchasedItemIds.has(item.id)) {
             console.log(
@@ -135,7 +137,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             console.warn(
                 `ShopModal: Cannot purchase ${
                     item.id
-                } (Coins: ${playerCoins}, Cost: ${cost}, Purchased: ${purchasedItemIds.has(
+                } (Type: ${itemType}, Coins: ${playerCoins}, Cost: ${cost}, Purchased: ${purchasedItemIds.has(
                     item.id
                 )})`
             );
@@ -204,7 +206,10 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                                     item={relic}
                                                     itemTypeOverride="relic"
                                                     onPurchase={() =>
-                                                        handlePurchase(relic)
+                                                        handlePurchase(
+                                                            relic,
+                                                            "relic"
+                                                        )
                                                     }
                                                     background={false}
                                                     showPrice={true}
@@ -230,7 +235,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                         "text-3xl mb-3 text-amber-300"
                                     )}
                                 >
-                                    Consumables
+                                    Items
                                 </h3>
                                 <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
                                     {consumables.length > 0 ? (
@@ -252,7 +257,8 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                                     itemTypeOverride="consumable"
                                                     onPurchase={() =>
                                                         handlePurchase(
-                                                            consumable
+                                                            consumable,
+                                                            "consumable"
                                                         )
                                                     }
                                                     background={false}

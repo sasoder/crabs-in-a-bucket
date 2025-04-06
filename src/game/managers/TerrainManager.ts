@@ -39,6 +39,7 @@ export class TerrainManager {
     // --- Generation Parameters (Tunable) ---
     private boulderSpawnChanceBase = 0.01;
     private enemySpawnChanceBase = 0.008;
+    private coinSpawnChanceBase = 0.005;
     private difficultyScaleFactor = 0.0003;
     // ---------------------------------------
 
@@ -267,6 +268,7 @@ export class TerrainManager {
 
         const currentBoulderChance = this.boulderSpawnChanceBase + depthFactor;
         const currentEnemyChance = this.enemySpawnChanceBase + depthFactor;
+        const currentCoinChance = this.coinSpawnChanceBase + depthFactor;
 
         // Calculate current enemy speed based on depth
         const currentEnemySpeed = Math.min(
@@ -288,6 +290,15 @@ export class TerrainManager {
                 const enemy = new Enemy(this.scene, spawnWorldX, spawnWorldY);
                 enemy.setSpeed(currentEnemySpeed);
                 this.enemiesGroup.add(enemy);
+            }
+
+            if (Math.random() < currentCoinChance || true) {
+                Coin.spawn(
+                    this.scene,
+                    this.coinsGroup as Phaser.Physics.Arcade.Group,
+                    spawnWorldX,
+                    spawnWorldY
+                );
             }
         }
     }

@@ -95,7 +95,7 @@ function App() {
         <TooltipProvider>
             <div
                 id="app"
-                className="h-screen w-screen bg-gray-800 flex justify-center items-center"
+                className="h-screen w-screen bg-[#87ceeb]/30 flex justify-center items-center"
             >
                 {!gameStarted ? (
                     // Show Start Button if game hasn't started
@@ -111,8 +111,7 @@ function App() {
                             Dig
                         </Button>
                         <p className="text-white/50 mt-8">
-                            Controls: arrow keys move, space to dig/jump. A to
-                            use items.
+                            Controls: arrow keys move/jump. Space to use items.
                         </p>
                     </div>
                 ) : (

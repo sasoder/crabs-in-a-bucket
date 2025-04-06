@@ -28,12 +28,12 @@ export const RELICS: Record<string, Relic> = {
         cost: 10,
         allowDuplicates: true,
     },
-    SPEED_RUNNER: {
-        id: "SPEED_RUNNER",
-        name: "Speed Runner",
+    LIGHTNING: {
+        id: "LIGHTNING",
+        name: "Lightning",
         effect: "Move Speed +10%",
         description: "You move faster than normal.",
-        spriteKey: "speed",
+        spriteKey: "lightning",
         cost: 10,
         allowDuplicates: true,
     },

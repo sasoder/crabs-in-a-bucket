@@ -106,8 +106,8 @@ export class Coin extends Phaser.Physics.Arcade.Image {
             (coin.body as Phaser.Physics.Arcade.Body).enable = false;
         }
 
-        if (scene.sound.get("coin_collect")) {
-            scene.sound.play("coin_collect", { volume: 0.4 });
+        if (scene.sound.get("collectcoin")) {
+            scene.sound.play("collectcoin", { volume: 0.4 });
         } else {
             console.warn("Coin collect sound not ready or not loaded.");
         }

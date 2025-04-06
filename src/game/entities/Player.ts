@@ -9,8 +9,8 @@ import { Relic } from "../data/Relics";
 // --- Import new entity types ---
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-    private moveSpeed = 80; // Adjust as needed
-    private jumpVelocity = -200; // Adjust as needed
+    private moveSpeed = 80; // Base speed
+    private jumpVelocity = -200; // Base jump velocity
     private bounceVelocity = -100; // Bounce after stomp
     private digCooldown = 150; // Milliseconds between digs
     private lastDigTime = 0;
@@ -51,18 +51,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.lastDigTime = this.scene.time.now;
 
         // 1. Trigger Jump
-        this.setVelocityY(
-            this.jumpVelocity +
-                (this.scene.registry.get("relics") as Relic[]).reduce(
-                    (acc, relic) => {
-                        if (relic.id === "FEATHER_WEIGHT") {
-                            return acc + 10;
-                        }
-                        return acc;
-                    },
-                    0
-                )
+        // Correctly check for Feather Weight relic ID
+        const jumpMultiplier = (
+            this.scene.registry.get("relics") as string[]
+        ).reduce(
+            (acc, relicId) => {
+                if (relicId === "FEATHER_WEIGHT") {
+                    // Check ID directly
+                    return acc * 1.1; // Apply 10% increase per stack
+                }
+                return acc;
+            },
+            1 // Start with base multiplier of 1
         );
+
+        this.setVelocityY(this.jumpVelocity * jumpMultiplier);
         // Play jump animation if available
         // this.anims.play('jump', true);
 
@@ -115,6 +118,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.setTemporaryInvulnerability(this.invulnerabilityDuration);
             return true; // Player survived
         }
+    }
+
+    heal(amount: number): boolean {
+        const currentLives = this.scene.registry.get("lives") as number;
+
+        const newLives = currentLives + amount;
+        this.scene.registry.set("lives", newLives);
+
+        console.log(`Player healed! Lives are now: ${newLives}`);
+        // Optionally play a heal sound effect
+        // this.scene.sound.play('heal_sound');
+
+        // Emit stats update to reflect the change in the UI
+        EventBus.emit("stats-changed");
+
+        return true; // Healed successfully
     }
 
     setTemporaryInvulnerability(duration: number) {
@@ -240,25 +259,31 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.bounce();
 
             // Award coins if slayer relic is owned
-            const slayerMultiplier = (
-                this.scene.registry.get("relics") as Relic[]
-            ).reduce((acc, relic) => {
-                if (relic.id === "SLAYER") {
-                    return acc + 2;
-                }
-                return acc;
-            }, 0);
-            const coinReward = slayerMultiplier;
-            const currentCoins = this.scene.registry.get("coins") as number;
-            this.scene.registry.set("coins", currentCoins + coinReward);
+            // Correctly check for Slayer relic ID and calculate reward
+            const slayerBonusPerStack = 2; // How many bonus coins per Slayer relic
+            const slayerStacks = (
+                this.scene.registry.get("relics") as string[]
+            ).filter((relicId) => relicId === "SLAYER").length;
+            const coinReward = slayerStacks * slayerBonusPerStack; // Calculate total bonus
 
-            // Update total coins collected
-            let totalCoinsCollected =
-                (this.scene.registry.get("totalCoinsCollected") as number) || 0;
-            totalCoinsCollected += coinReward;
-            this.scene.registry.set("totalCoinsCollected", totalCoinsCollected);
+            if (coinReward > 0) {
+                const currentCoins = this.scene.registry.get("coins") as number;
+                this.scene.registry.set("coins", currentCoins + coinReward);
 
-            EventBus.emit("stats-changed");
+                // Update total coins collected
+                let totalCoinsCollected =
+                    (this.scene.registry.get(
+                        "totalCoinsCollected"
+                    ) as number) || 0;
+                totalCoinsCollected += coinReward;
+                this.scene.registry.set(
+                    "totalCoinsCollected",
+                    totalCoinsCollected
+                );
+
+                EventBus.emit("stats-changed"); // Update UI if coins changed
+            }
+
             return true;
         } else if (!this.isInvulnerable) {
             console.log("Player ran into enemy!");
@@ -276,7 +301,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         return false;
     }
 
-    // Basic movement update
+    // Basic movement update - REMOVED keyE parameter
     update(
         cursors: Phaser.Types.Input.Keyboard.CursorKeys,
         time: number,
@@ -291,12 +316,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Clean up old collision records to prevent memory leaks
         this.cleanupCollisionRecords(time);
 
+        // --- Calculate effective move speed based on relics ---
+        const speedMultiplier = (
+            this.scene.registry.get("relics") as string[]
+        ).reduce(
+            (acc, relicId) => {
+                if (relicId === "LIGHTNING") {
+                    // Check ID directly
+                    return acc * 1.1; // Apply 10% increase per stack
+                }
+                return acc;
+            },
+            1 // Start with base multiplier of 1
+        );
+        const effectiveMoveSpeed = this.moveSpeed * speedMultiplier;
+        // --- End Calculate effective move speed ---
+
         if (cursors.left.isDown) {
-            this.setVelocityX(-this.moveSpeed);
+            this.setVelocityX(-effectiveMoveSpeed); // Use effective speed
             this.setFlipX(true); // Flip sprite left
             // this.anims.play('run', true);
         } else if (cursors.right.isDown) {
-            this.setVelocityX(this.moveSpeed);
+            this.setVelocityX(effectiveMoveSpeed); // Use effective speed
             this.setFlipX(false); // Normal sprite direction
             // this.anims.play('run', true);
         } else {
@@ -311,6 +352,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (cursors.up.isDown) {
             this.attemptJumpAndDig();
         }
+
+        // --- Use Consumable --- Input is now handled in Game.ts
 
         // Prevent sticking to walls when falling
         if (
