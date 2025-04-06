@@ -13,6 +13,7 @@ import { ParticleManager } from "../managers/ParticleManager";
 import { EnemyManager } from "../managers/EnemyManager";
 import { CONSUMABLES } from "../data/Consumables";
 import { TNT } from "../entities/TNT";
+import { RELICS } from "../data/Relics";
 
 export default class Game extends Phaser.Scene {
     public player?: Player;
@@ -43,6 +44,8 @@ export default class Game extends Phaser.Scene {
     private surfaceColor = 0x87ceeb; // Light blue sky at surface
     private deepColor = 0x0a1a2a; // Dark blue/black for deep underground
     private maxDarkeningDepth = 100; // Depth at which max darkness is reached
+
+    private heartStoneTimer?: Phaser.Time.TimerEvent; // Timer for Heart Stone relic
 
     constructor() {
         super("Game");
@@ -167,12 +170,16 @@ export default class Game extends Phaser.Scene {
 
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
-        this.registry.set("relics", [] as string[]);
+        this.registry.set("relics", ["STEEL_BOOTS", "HEART_STONE"] as string[]);
         this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
 
         this.setupEventListeners();
+
+        // --- Heart Stone Timer ---
+        this.setupHeartStoneTimer();
+        // --- End Heart Stone Timer ---
 
         EventBus.emit("current-scene-ready", this);
     }
@@ -542,8 +549,11 @@ export default class Game extends Phaser.Scene {
             this
         );
         EventBus.on("use-consumable-requested", this.useConsumable, this);
+        EventBus.on("relics-changed", this.setupHeartStoneTimer, this);
 
-        console.log("Game Scene Event Listeners Setup.");
+        console.log(
+            "Game Scene Event Listeners Setup (including relic changes)."
+        );
     }
 
     private removeEventListeners() {
@@ -558,8 +568,11 @@ export default class Game extends Phaser.Scene {
         EventBus.off("player-dig", undefined, this);
         EventBus.off("place-bomb", undefined, this);
         EventBus.off("use-consumable-requested", this.useConsumable, this);
+        EventBus.off("relics-changed", this.setupHeartStoneTimer, this);
 
-        console.log("Game Scene Event Listeners Removed.");
+        console.log(
+            "Game Scene Event Listeners Removed (including relic changes)."
+        );
     }
 
     resumeGame() {
@@ -760,6 +773,14 @@ export default class Game extends Phaser.Scene {
     shutdown() {
         console.log("Game scene shutting down...");
 
+        // --- Clear Heart Stone Timer ---
+        if (this.heartStoneTimer) {
+            this.heartStoneTimer.remove();
+            this.heartStoneTimer = undefined;
+            console.log("Heart Stone timer cleared.");
+        }
+        // --- End Clear Heart Stone Timer ---
+
         if (this.shopManager) {
             this.shopManager.destroy();
         }
@@ -823,6 +844,8 @@ export default class Game extends Phaser.Scene {
         this.coinsGroup = undefined!;
         this.tntGroup = undefined!;
         this.rowColliderGroup = undefined!;
+
+        this.heartStoneTimer = undefined; // Ensure property is cleared
 
         console.log("Game scene shutdown complete.");
     }
@@ -954,7 +977,7 @@ export default class Game extends Phaser.Scene {
                 break;
             case "GEODE":
                 // Give player random amount of coins (3-15)
-                const coinAmount = Phaser.Math.Between(3, 15);
+                const coinAmount = Phaser.Math.Between(2, 15);
                 const currentCoins = this.registry.get("coins") as number;
                 this.registry.set("coins", currentCoins + coinAmount);
 
@@ -1022,6 +1045,69 @@ export default class Game extends Phaser.Scene {
             console.log(
                 `Failed to use ${consumableData.name} (e.g., already at max health).`
             );
+        }
+    }
+
+    /**
+     * Sets up or resets the timer for the Heart Stone relic.
+     */
+    private setupHeartStoneTimer(): void {
+        // Clear existing timer if it exists
+        if (this.heartStoneTimer) {
+            this.heartStoneTimer.remove();
+            this.heartStoneTimer = undefined;
+            console.log("Cleared existing Heart Stone timer.");
+        }
+
+        // Check if the player has any Heart Stone relics
+        const relics = (this.registry.get("relics") as string[]) || [];
+        const heartStoneCount = relics.filter(
+            (id) => id === RELICS.HEART_STONE.id
+        ).length;
+
+        if (heartStoneCount > 0) {
+            console.log(
+                `Setting up Heart Stone timer for ${heartStoneCount} relic(s).`
+            );
+            // Create a new looping timer
+            this.heartStoneTimer = this.time.addEvent({
+                delay: 60000, // 60 seconds
+                callback: this.onHeartStoneTick,
+                callbackScope: this,
+                loop: true,
+            });
+        } else {
+            console.log("No Heart Stone relics found, timer not started.");
+        }
+    }
+
+    /**
+     * Called every 60 seconds by the heartStoneTimer.
+     */
+    private onHeartStoneTick(): void {
+        if (!this.player || !this.player.active) {
+            console.log("Heart Stone Tick: Player inactive, skipping heal.");
+            return;
+        }
+
+        const relics = (this.registry.get("relics") as string[]) || [];
+        const heartStoneCount = relics.filter(
+            (id) => id === RELICS.HEART_STONE.id
+        ).length;
+
+        if (heartStoneCount > 0) {
+            console.log(
+                `Heart Stone Tick: Healing player for ${heartStoneCount} HP.`
+            );
+            this.player.heal(heartStoneCount); // Heal amount based on relic count
+        } else {
+            // This case should theoretically not happen if the timer is managed correctly,
+            // but good for safety.
+            console.warn(
+                "Heart Stone Tick: Timer fired but no Heart Stone relic found. Stopping timer."
+            );
+            this.heartStoneTimer?.remove();
+            this.heartStoneTimer = undefined;
         }
     }
 }

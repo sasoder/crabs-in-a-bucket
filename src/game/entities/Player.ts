@@ -52,29 +52,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.lastDigTime = this.scene.time.now;
 
         // 1. Trigger Jump
-        // Correctly check for Feather Weight relic ID
         const jumpMultiplier = (
             this.scene.registry.get("relics") as string[]
-        ).reduce(
-            (acc, relicId) => {
-                if (relicId === "FEATHER_WEIGHT") {
-                    // Check ID directly
-                    return acc * 1.1; // Apply 10% increase per stack
-                }
-                return acc;
-            },
-            1 // Start with base multiplier of 1
-        );
+        ).reduce((acc, relicId) => {
+            if (relicId === "FEATHER_WEIGHT") {
+                return acc * 1.2;
+            }
+            return acc;
+        }, 1);
 
         this.setVelocityY(this.jumpVelocity * jumpMultiplier);
         this.scene.sound.play("jump", { volume: 0.5 });
-        // Play jump animation if available
-        // this.anims.play('jump', true);
 
         // 2. Directly attempt row clear via TerrainManager
         const checkWorldX = this.x;
         // Check slightly below the player's bottom center
-        const checkWorldY = this.body!.bottom + 1; // Check just below feet
+        let checkWorldY = this.body!.bottom + 1; // Check just below feet
+
         this.gameScene.particleManager.triggerParticles(
             "dirt_tile",
             this.x,
@@ -83,13 +77,52 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         );
 
         // Access terrainManager through the typed scene reference
-        const rowCleared =
+        let rowCleared =
             this.gameScene.terrainManager.clearCurrentRow(checkWorldY);
 
         if (rowCleared) {
-            console.log(`Player initiated row clear at Y ~ ${checkWorldY}`);
-            // Add sound effect? Visual effect?
-            // this.gameScene.sound.play('dig_sound');
+            console.log(
+                `Player initiated base row clear at Y ~ ${checkWorldY}`
+            );
+            // this.gameScene.sound.play('dig_sound'); // Optional: Base dig sound
+
+            // 3. Handle DRILL Relic for extra depth
+            const drillRelicsCount = (
+                this.scene.registry.get("relics") as string[]
+            ).filter((relicId) => relicId === "DRILL").length;
+
+            if (drillRelicsCount > 0) {
+                console.log(`Player has ${drillRelicsCount} DRILL relics.`);
+                // Loop for each drill relic to clear subsequent rows
+                for (let i = 0; i < drillRelicsCount; i++) {
+                    // Calculate the Y position for the next row down
+                    const nextRowWorldY = checkWorldY + (i + 1) * TILE_SIZE;
+                    console.log(
+                        `DRILL: Attempting to clear row at Y ~ ${nextRowWorldY}`
+                    );
+                    const extraRowCleared =
+                        this.gameScene.terrainManager.clearCurrentRow(
+                            nextRowWorldY
+                        );
+
+                    if (extraRowCleared) {
+                        // Optional: Add visual/sound for extra dig
+                        // this.gameScene.sound.play('drill_sound', { volume: 0.3 });
+                        this.gameScene.particleManager.triggerParticles(
+                            "dirt_tile",
+                            this.x,
+                            nextRowWorldY + TILE_SIZE / 2, // Particles at the deeper row
+                            { count: 2 } // Fewer particles for extra digs?
+                        );
+                    } else {
+                        console.log(
+                            `DRILL: No row to clear at Y ~ ${nextRowWorldY}`
+                        );
+                        // Stop drilling deeper if a row fails (e.g., hit bottom or empty space)
+                        break;
+                    }
+                }
+            }
         } else {
             // console.log(`Jumped, but no dirt to clear below at Y ~ ${checkWorldY}`);
         }
@@ -134,12 +167,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const newLives = currentLives + amount;
         this.scene.registry.set("lives", newLives);
 
-        console.log(`Player healed! Lives are now: ${newLives}`);
         // Optionally play a heal sound effect
-        // this.scene.sound.play('heal_sound');
+        this.scene.sound.play("heal", { volume: 1 });
 
         // Emit stats update to reflect the change in the UI
-        EventBus.emit("stats-changed");
+        EventBus.emit("stats-changed"); // Use stats-changed for consistency
 
         return true; // Healed successfully
     }
@@ -282,23 +314,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             enemy.takeDamage(999);
             this.bounce();
 
-            // Award coins if slayer relic is owned
-            // Correctly check for Slayer relic ID and calculate reward
-            const slayerBonusPerStack = 2; // How many bonus coins per Slayer relic
-            const slayerStacks = (
-                this.scene.registry.get("relics") as string[]
-            ).filter((relicId) => relicId === "SLAYER").length;
-            const coinReward = slayerStacks * slayerBonusPerStack; // Calculate total bonus
-
-            if (coinReward > 0) {
-                Coin.spawn(
-                    this.gameScene,
-                    this.gameScene.coinsGroup,
-                    this.x,
-                    this.y
-                );
-            }
-
             return true;
         } else if (!this.isInvulnerable) {
             console.log("Player ran into enemy!");
@@ -338,7 +353,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             (acc, relicId) => {
                 if (relicId === "LIGHTNING") {
                     // Check ID directly
-                    return acc * 1.1; // Apply 10% increase per stack
+                    return acc * 1.2; // Apply 20% increase per stack
                 }
                 return acc;
             },

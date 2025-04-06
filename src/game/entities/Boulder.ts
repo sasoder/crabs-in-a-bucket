@@ -211,10 +211,10 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 targetBody.center.y > body.bottom &&
                 targetBody.center.y < impactCheckY
             ) {
-                // Skip damage to enemies completely
+                // Damage enemies when landed upon
                 if (target instanceof Enemy) {
-                    // Don't damage enemies that land on boulders
-                    console.log("Enemy on boulder, no damage");
+                    target.takeDamage(999); // Apply lethal damage
+                    console.log("Boulder landed on enemy, applying damage");
                 } else if (target instanceof Player) {
                     if (!this.safeForPlayer) {
                         target.takeDamage(1, "boulder_land");
@@ -267,7 +267,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 }
                 // --- END CHECK ---
                 damaged = true;
-                this.playCollisionHitEffect(); // Play effect on successful hit
+                // this.playCollisionHitEffect(); // Play effect on successful hit
             }
             this.markAsSafeForPlayer(); // Mark safe regardless of damage dealt this frame
         } else if (otherObject instanceof Enemy) {
@@ -279,27 +279,17 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             }
             // --- END CHECK ---
             damaged = true;
-            this.playCollisionHitEffect();
+            // this.playCollisionHitEffect();
         } else if (otherObject instanceof Spike) {
             // Destroy spikes
             otherObject.takeDamage(999); // Use takeDamage which handles destruction
             // Optionally, boulder takes less/no damage from fragile spike
             // this.takeDamage(selfDamage / 2); // Example: less damage
             damaged = true; // Spike was "damaged" (destroyed)
-            this.playCollisionHitEffect();
+            // this.playCollisionHitEffect();
         }
 
         return damaged;
-    }
-
-    private playCollisionHitEffect(): void {
-        this.scene.sound.play("hit", { volume: 0.4 });
-        this.scene.tweens.add({
-            targets: this,
-            angle: this.angle + Phaser.Math.Between(-15, 15),
-            duration: 50,
-            yoyo: true,
-        });
     }
 
     public isMovingDangerously(): boolean {

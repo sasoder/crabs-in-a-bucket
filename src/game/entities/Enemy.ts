@@ -4,6 +4,7 @@ import { BaseGameEntity } from "./BaseGameEntity"; // Import the base class
 import { TILE_SIZE } from "../constants"; // Import BlockType
 import { Boulder } from "./Boulder"; // Keep for collision type check
 import Game from "../scenes/Game"; // Import Game scene for proper access
+import { Coin } from "./Coin";
 
 export class Enemy extends BaseGameEntity {
     // Extend BaseGameEntity
@@ -118,6 +119,22 @@ export class Enemy extends BaseGameEntity {
         }
 
         if (this.health <= 0) {
+            // Award coins if slayer relic is owned
+            // Correctly check for Slayer relic ID and calculate reward
+            const slayerBonusPerStack = 2; // How many bonus coins per Slayer relic
+            const slayerStacks = (
+                this.scene.registry.get("relics") as string[]
+            ).filter((relicId) => relicId === "SLAYER").length;
+            const coinReward = slayerStacks * slayerBonusPerStack; // Calculate total bonus
+
+            if (coinReward > 0) {
+                Coin.spawn(
+                    this.gameScene,
+                    this.gameScene.coinsGroup,
+                    this.x,
+                    this.y
+                );
+            }
             this.destroy(); // Handles particles and sound
         } else if (amount > 0) {
             // Play hit sound only if damaged but not destroyed yet

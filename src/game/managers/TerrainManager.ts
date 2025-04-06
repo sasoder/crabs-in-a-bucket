@@ -40,11 +40,11 @@ export class TerrainManager {
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
-    private boulderSpawnChanceBase = 0.03;
-    private enemySpawnChanceBase = 0.008;
+    private boulderSpawnChanceBase = 0.01;
+    private enemySpawnChanceBase = 0.005;
     private spikeSpawnChanceBase = 0.03; // Add spike spawn chance
-    private coinSpawnChanceBase = 0.005;
-    private difficultyScaleFactor = 0.003;
+    private coinSpawnChanceBase = 0.07;
+    private difficultyScaleFactor = 0.008;
     // ---------------------------------------
 
     // --- Initial Platform ---
@@ -362,10 +362,10 @@ export class TerrainManager {
         const depthFactor =
             Math.max(0, depthInRows) * this.difficultyScaleFactor;
 
-        const currentBoulderChance = this.boulderSpawnChanceBase + depthFactor;
+        const currentBoulderChance = this.boulderSpawnChanceBase;
         const currentEnemyChance = this.enemySpawnChanceBase + depthFactor;
-        const currentSpikeChance = this.spikeSpawnChanceBase + depthFactor;
-        const currentCoinChance = this.coinSpawnChanceBase + depthFactor;
+        const currentSpikeChance = this.spikeSpawnChanceBase;
+        const currentCoinChance = this.coinSpawnChanceBase;
 
         // Calculate enemy speed based on depth
         const currentEnemySpeed = Math.min(
@@ -574,8 +574,6 @@ export class TerrainManager {
                 continue; // Move to next tile position after attempting spike
             }
 
-            // Check Coin - only if boulder/enemy/spike didn't spawn
-            // NOTE: Coins are checked last and DON'T occupy space for subsequent checks within this loop
             const tryCoin = Math.random() < currentCoinChance;
             if (tryCoin && this.coinsGroup) {
                 // Log spawn attempt

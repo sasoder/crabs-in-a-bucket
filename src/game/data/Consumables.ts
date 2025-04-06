@@ -31,10 +31,10 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
     TNT: {
         id: "TNT",
         name: "TNT",
-        description: "A bundle of TNT with a 5 second fuse.",
-        effect: "Place a TNT on the ground. It will explode after 5 seconds, destroying terrain and damaging enemies.",
+        description: "A bundle of TNT with a 3 second fuse.",
+        effect: "Place a TNT on the ground. It will explode after 3 seconds, destroying terrain and damaging enemies.",
         spriteKey: "tnt",
-        cost: 10,
+        cost: 7,
         isEntity: true,
     },
     BOULDER: {

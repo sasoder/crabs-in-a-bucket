@@ -7,10 +7,10 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
     private gameScene: Game;
     private explosionTimer: Phaser.Time.TimerEvent;
     private tickSound?: Phaser.Sound.BaseSound;
-    private explosionRadius = 3 * TILE_SIZE; // 3 tile radius
+    private explosionRadius = 4 * TILE_SIZE; // 3 tile radius
     private explosionDamage = 999;
     private tickInterval = 1000; // 1 second between ticks
-    private countdownSeconds = 5;
+    private countdownSeconds = 3;
     private currentTick = 0;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {

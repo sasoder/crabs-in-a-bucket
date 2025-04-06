@@ -74,6 +74,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.image("spikes", "assets/entities/spikes.png");
         this.load.image("geode", "assets/consumables/geode.png");
         this.load.image("drill", "assets/relics/drill.png");
+        this.load.image("heart_stone", "assets/relics/heart_stone.png");
         this.load.spritesheet("player", "assets/entities/player.png", {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,
@@ -109,6 +110,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.audio("tick", "assets/audio/tick.wav");
         this.load.audio("explosion", "assets/audio/explosion.wav");
         this.load.audio("bg", "assets/audio/bg.wav");
+        this.load.audio("heal", "assets/audio/heal.wav");
         // ... add all other consumable images ...
     }
 
