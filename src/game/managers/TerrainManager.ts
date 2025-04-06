@@ -162,13 +162,18 @@ export class TerrainManager {
     public clearCurrentRow(triggerWorldY: number): boolean {
         // Calculate the row index *below* the trigger point
         const playerRowYBelow = Math.floor(triggerWorldY / TILE_SIZE) + 1;
+        // Calculate the row *above* that row, which is the row the player is currently on
+        const playerCurrentRow = playerRowYBelow - 1;
 
         // Get the world Y coordinate of the top of the row below
         const targetRowWorldY = playerRowYBelow * TILE_SIZE;
         const targetTileY = playerRowYBelow; // Row index to clear
 
         console.log(
-            `Attempting to clear row BELOW trigger point. Target tileY=${targetTileY} (WorldY ~${targetRowWorldY})`
+            `Attempting to clear row BELOW player at tileY=${targetTileY} (WorldY ~${targetRowWorldY})`
+        );
+        console.log(
+            `Also clearing spikes from row ABOVE at tileY=${playerCurrentRow}`
         );
 
         const collider = this.rowColliders.get(targetTileY);
@@ -185,37 +190,59 @@ export class TerrainManager {
                 this.rowVisuals.delete(targetTileY);
             }
 
-            // Damage static spikes directly on this row when it's cleared
+            // SUPER SIMPLE APPROACH: Just clear all spikes on row ABOVE the target row
             if (this.spikesGroup) {
+                const rowAboveWorldY = playerCurrentRow * TILE_SIZE;
+
                 this.spikesGroup.getChildren().forEach((spikeGO) => {
                     const spike = spikeGO as Spike;
                     if (!spike.active) return;
 
-                    // Check if the spike's origin Y is within the cleared row's bounds
-                    // Static spikes are placed with origin at top-center of tile space
-                    const spikeTileY = Math.floor(spike.y / TILE_SIZE);
+                    // Spikes are positioned at bottom center with super(scene, x + TILE_SIZE / 2, y + TILE_SIZE, "spikes")
+                    // This means their Y value is approximately at the bottom of the tile
+                    // For a spike on row P, its Y would be near (P+1)*TILE_SIZE
 
-                    if (spikeTileY === targetTileY) {
-                        spike.takeDamage(1); // Damage spike when its row is cleared
+                    // Check if this spike should be removed
+                    // Using a simple Y range check
+                    if (
+                        spike.y > rowAboveWorldY &&
+                        spike.y < rowAboveWorldY + TILE_SIZE * 1.2
+                    ) {
+                        console.log(
+                            `Destroying spike at Y=${spike.y}, on row above target`
+                        );
+                        spike.takeDamage(1);
                     }
                 });
             }
 
             // Trigger particles across the cleared row
             if (this.particleManager) {
-                // Position particles in the middle of the *cleared* row
+                // Particles for dirt row
                 const particleY = targetRowWorldY + TILE_SIZE / 2;
                 for (let i = 0; i < this.mapWidthTiles; i++) {
                     this.particleManager.triggerParticles(
-                        "dirt_tile", // Use dirt texture key for particles
+                        "dirt_tile",
                         i * TILE_SIZE + TILE_SIZE / 2,
                         particleY,
-                        { count: 3 } // Adjust count as needed
+                        { count: 3 }
+                    );
+                }
+
+                // Particles for spike row (one row above)
+                const spikeRowParticleY =
+                    playerCurrentRow * TILE_SIZE + TILE_SIZE / 2;
+                for (let i = 0; i < this.mapWidthTiles; i++) {
+                    this.particleManager.triggerParticles(
+                        "spikes",
+                        i * TILE_SIZE + TILE_SIZE / 2,
+                        spikeRowParticleY,
+                        { count: 2, speed: 70, scale: 0.4 }
                     );
                 }
             }
 
-            // Optional: Emit an event that a row was cleared
+            // Emit an event that a row was cleared
             EventBus.emit("dirt-row-cleared", { tileY: targetTileY });
             return true; // Row cleared
         } else {

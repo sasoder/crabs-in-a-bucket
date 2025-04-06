@@ -67,6 +67,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         );
 
         this.setVelocityY(this.jumpVelocity * jumpMultiplier);
+        this.scene.sound.play("jump", { volume: 0.5 });
         // Play jump animation if available
         // this.anims.play('jump', true);
 
@@ -110,7 +111,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         EventBus.emit("update-stats", { lives: newLives }); // Quick update
         EventBus.emit("player-damaged"); // For effects like flashing/sound
         // Play hit sound
-        this.scene.sound.play("hit");
+        this.scene.sound.play("hit", { volume: 0.5 });
         console.log(`Player took damage! Lives remaining: ${newLives}`);
 
         if (newLives <= 0) {
@@ -274,6 +275,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             if (!hasSteelBoots) {
                 this.takeDamage(1);
                 this.bounce();
+                enemy.takeDamage(999);
                 return true;
             }
             console.log("Enemy stomped!");

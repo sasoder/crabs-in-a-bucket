@@ -365,6 +365,30 @@ export default class Game extends Phaser.Scene {
 
         if (!enemy.active || !boulder.active) return;
 
+        // Get the bodies for position and velocity checks
+        const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+        const boulderBody = boulder.body as Phaser.Physics.Arcade.Body;
+
+        // Check if enemy is falling onto the boulder from above
+        const isEnemyFallingOntoBoulder =
+            enemyBody.velocity.y > 50 && // Enemy falling down
+            enemyBody.bottom <= boulderBody.top + 10 && // Enemy was above boulder
+            Math.abs(enemyBody.center.x - boulderBody.center.x) <
+                TILE_SIZE * 0.7; // Horizontally aligned
+
+        // Also check if enemy is standing on the boulder (no significant horizontal velocity)
+        const isEnemyOnBoulder =
+            enemyBody.bottom <= boulderBody.top + 10 && // Position check
+            Math.abs(enemyBody.center.x - boulderBody.center.x) <
+                TILE_SIZE * 0.7 && // Horizontally aligned
+            Math.abs(enemyBody.velocity.y) < 30; // Low vertical velocity (not jumping/falling much)
+
+        if (isEnemyFallingOntoBoulder || isEnemyOnBoulder) {
+            // Enemy fell on boulder from above or is standing on it, don't damage enemy
+            // This makes the enemy ride the boulder
+            return;
+        }
+
         // Check if the boulder is moving significantly
         if (boulder.isMovingDangerously()) {
             // Boulder is moving, damage the enemy (instant kill)

@@ -136,7 +136,7 @@ export class Enemy extends BaseGameEntity {
                 );
             }
             // Play destruction sound here consistently
-            this.gameScene.sound.play("hit"); // Or a dedicated enemy death sound
+            this.gameScene.sound.play("hit", { volume: 0.5 }); // Or a dedicated enemy death sound
         }
 
         super.destroy(fromScene);

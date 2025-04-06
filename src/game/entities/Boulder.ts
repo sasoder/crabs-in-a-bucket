@@ -193,14 +193,16 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
 
             if (!targetBody) return;
 
+            // Check if entity is below the boulder when it lands
             if (
                 Math.abs(targetBody.center.x - this.x) < impactRadius &&
                 targetBody.center.y > body.bottom &&
                 targetBody.center.y < impactCheckY
             ) {
+                // Skip damage to enemies completely
                 if (target instanceof Enemy) {
-                    target.takeDamage(999);
-                    console.log("Boulder landed on enemy");
+                    // Don't damage enemies that land on boulders
+                    console.log("Enemy on boulder, no damage");
                 } else if (target instanceof Player) {
                     if (!this.safeForPlayer) {
                         target.takeDamage(1, "boulder_land");
