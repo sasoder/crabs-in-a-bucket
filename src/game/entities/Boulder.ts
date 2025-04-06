@@ -153,7 +153,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             this.gameScene.particleManager.triggerParticles(
                 "boulder",
                 this.x,
-                body.bottom,
+                this.y,
                 {
                     count: 5,
                     speed: 40,

@@ -111,9 +111,9 @@ export class Coin extends Phaser.Physics.Arcade.Image {
         if (gameScene.particleManager) {
             gameScene.particleManager.triggerParticles("coin", coin.x, coin.y, {
                 count: 10,
-                speed: 50,
+                speed: 150,
                 lifespan: 400,
-                scale: 0.4,
+                scale: 1,
             });
         }
 

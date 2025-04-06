@@ -56,8 +56,8 @@ export class Spike extends Phaser.Physics.Arcade.Sprite {
         if (this.gameScene.particleManager) {
             this.gameScene.particleManager.triggerParticles(
                 "spikes", // Use spike texture key or a different particle type
-                this.x,
-                this.y - TILE_SIZE / 2, // Emit from near the visual center
+                this.x, // Use direct x coordinate
+                this.y, // Use direct y coordinate
                 {
                     count: 8,
                     speed: 70, // Use a single number instead of min/max object

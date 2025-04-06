@@ -114,15 +114,33 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         // Simplified explosion effect
         if (this.gameScene.particleManager) {
             // Single, central explosion burst
+            const textureKey = "sand_tile"; // Or your explosion particle key
+            console.log(
+                `TNT: Attempting particle trigger. Manager exists: ${!!this
+                    .gameScene.particleManager}, Key: "${textureKey}", Pos: (${
+                    this.x
+                }, ${this.y})`
+            );
+            if (!this.gameScene.particleManager) {
+                console.error("TNT: ParticleManager is UNDEFINED here!");
+            } else {
+                const emitterExists =
+                    this.gameScene.particleManager["emitters"]?.has(textureKey); // Access private for debug
+                console.log(
+                    `TNT: Emitter for key "${textureKey}" exists in manager: ${emitterExists}`
+                );
+            }
             this.gameScene.particleManager.triggerParticles(
-                "sand_tile", // Or a dedicated explosion particle if you create one
-                this.x,
-                this.y,
+                textureKey, // Use the logged key
+                this.x, // Revert back to using direct this.x
+                this.y, // Revert back to using direct this.y
                 {
-                    speed: 120, // Add some speed variation
-                    count: 60,
-                    alpha: { start: 1, end: 0.3 },
-                    scale: { start: 2.0, end: 0.2 }, // Correct range format
+                    speed: 50, // Slow speed
+                    count: 50, // More particles
+                    alpha: 1, // Force full alpha
+                    scale: 1.5, // Force larger, fixed scale
+                    lifespan: 3000, // Long lifespan
+                    gravityY: 100, // Lower gravity
                 }
             );
         }

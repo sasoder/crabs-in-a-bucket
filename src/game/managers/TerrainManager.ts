@@ -254,30 +254,63 @@ export class TerrainManager {
 
             // --- Trigger particles based on tile types ---
             if (this.particleManager) {
-                const particleY = targetTileY * TILE_SIZE + TILE_SIZE / 2;
+                const particleY = targetTileY * TILE_SIZE + TILE_SIZE / 2; // REVERTED: Back to center Y
 
                 for (let i = 0; i < this.mapWidthTiles; i++) {
-                    const particleX = i * TILE_SIZE + TILE_SIZE / 2;
-                    const tileType = tileTypes[i];
-                    const particleName =
+                    const particleX = i * TILE_SIZE + TILE_SIZE / 2; // Keep horizontal center
+                    let tileType = tileTypes[i];
+                    let particleName =
                         TILE_TO_PARTICLE_MAP[tileType] || "sand_tile";
+
+                    // Replace sand_tile with sand_row for multi-point row clearing
+                    if (particleName === "sand_tile") {
+                        particleName = "sand_row"; // Use our special sand_row emitter
+                    }
 
                     // Ensure particleName is valid and not empty
                     if (particleName && particleName.length > 0) {
                         // Use consistent, simple options for row clearing
                         const particleOptions: ParticleOptions = {
-                            count: 5, // Reduced count per tile to avoid overload
-                            speed: 60,
-                            scale: { start: 1, end: 0.5 }, // Consistent scale
-                            lifespan: 800,
-                            gravityY: 250,
+                            count: 5, // Increased count
+                            speed: 50,
+                            scale: 1, // Force larger, fixed scale
+                            lifespan: 3000, // Much longer lifespan
+                            gravityY: 100, // Lower gravity
+                            alpha: 1, // Force full alpha
                         };
+
+                        // --- ADDED LOGGING ---
+                        console.log(
+                            `TerrainManager: Attempting particle trigger. Manager exists: ${!!this
+                                .particleManager}, Key: "${particleName}", Pos: (${particleX}, ${particleY})`
+                        );
+                        if (!this.particleManager) {
+                            console.error(
+                                "TerrainManager: ParticleManager is UNDEFINED here!"
+                            );
+                        } else {
+                            const emitterExists =
+                                this.particleManager["emitters"]?.has(
+                                    particleName
+                                ); // Access private for debug
+                            console.log(
+                                `TerrainManager: Emitter for key "${particleName}" exists in manager: ${emitterExists}`
+                            );
+                        }
+                        // --- END ADDED LOGGING ---
+
+                        // <<< NEW ROW CLEAR LOGGING >>>
+                        console.log(
+                            `ROW_CLEAR_TRIGGER: Tile ${i}, Type: ${particleName}, X: ${particleX}, Y: ${particleY}`
+                        );
+                        // <<< END NEW LOGGING >>>
 
                         this.particleManager.triggerParticles(
                             particleName,
                             particleX,
                             particleY,
-                            particleOptions
+                            particleOptions,
+                            true // Indicate this is a multi-point burst
                         );
                     }
                 }
