@@ -1,69 +1,59 @@
 // src/game/managers/TerrainManager.ts
 import Phaser from "phaser";
-import { TILE_SIZE } from "../constants"; // Keep TILE_SIZE for row height
+import { TILE_SIZE, TileIndex, TILE_TO_PARTICLE_MAP } from "../constants";
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
-import { Spike } from "../entities/Spike"; // Add Spike import
-// import { BlockConfig } from "../types/BlockConfig"; // Not needed
+import { Spike } from "../entities/Spike";
 import { EventBus } from "../EventBus";
 import { Coin } from "../entities/Coin";
-import Game from "../scenes/Game"; // Import Game scene type
+import Game from "../scenes/Game";
 import { ParticleManager } from "./ParticleManager";
-// --- Remove BlockType and blockConfigs ---
+
+// Remove local tile index constants since we're now importing from constants.ts
 
 export class TerrainManager {
-    private scene: Game; // Use specific Game type
-    // --- Remove map and groundLayer ---
-    // private map: Phaser.Tilemaps.Tilemap;
-    // private groundLayer: Phaser.Tilemaps.TilemapLayer;
+    private scene: Game;
+    private map: Phaser.Tilemaps.Tilemap;
+    private groundLayer: Phaser.Tilemaps.TilemapLayer;
 
     private generatedRowsMaxY: number = 0;
     private bouldersGroup: Phaser.Physics.Arcade.Group;
     private enemiesGroup: Phaser.Physics.Arcade.Group;
-    // Change spikesGroup type to StaticGroup
     private spikesGroup?: Phaser.Physics.Arcade.StaticGroup;
     private coinsGroup?: Phaser.Physics.Arcade.Group;
-    private particleManager?: ParticleManager; // Assuming ParticleManager exists
+    private particleManager?: ParticleManager;
 
-    // --- REVISED: Row Management ---
+    // --- Row Collider Management ---
     private rowColliderGroup: Phaser.Physics.Arcade.StaticGroup;
-    // Remove TileSprite related properties
-    // private rowVisualsGroup: Phaser.GameObjects.Group;
     private rowColliders: Map<number, Phaser.GameObjects.GameObject> =
         new Map();
-    // private rowVisuals: Map<number, Phaser.GameObjects.GameObject> = new Map();
-
-    // NEW: For individual tile visuals
-    private individualTileVisualsGroup: Phaser.GameObjects.Group;
-    private individualTileVisuals: Map<number, Phaser.GameObjects.Image[]> =
-        new Map();
-    // -----------------------------
+    // --- End Row Collider Management ---
 
     // Map dimensions (adjust as needed)
-    private mapWidthTiles = 25; // Width in terms of tiles/columns
-    private mapHeightTiles = 500; // Max height in terms of tiles/rows
+    private mapWidthTiles = 25;
+    private mapHeightTiles = 500;
     private mapWidthPixels = this.mapWidthTiles * TILE_SIZE;
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
     private boulderSpawnChanceBase = 0.022;
     private enemySpawnChanceBase = 0.0035;
-    private spikeSpawnChanceBase = 0.03; // Add spike spawn chance
+    private spikeSpawnChanceBase = 0.03;
     private coinSpawnChanceBase = 0.1;
     private difficultyScaleFactor = 0.008;
-    private specialTileChance = 0.05; // Chance for gold/stone tile (per tile)
+    private specialTileChance = 0.05; // Chance for dirt/stone tile (per tile)
     // ---------------------------------------
 
     // --- Initial Platform ---
-    private initialPlatformRows = 5; // How many rows down the starting platform is
-    private initialClearRows = 3; // How many empty rows above the platform
+    private initialPlatformRows = 5;
+    private initialClearRows = 3;
     // ------------------------
 
-    private baseEnemySpeed = 30; // Define a base speed
-    private enemySpeedDepthScale = 0.5; // How much speed increases per row depth
+    private baseEnemySpeed = 30;
+    private enemySpeedDepthScale = 0.5;
 
     constructor(
-        scene: Game, // Use specific Game type
+        scene: Game,
         bouldersGroup: Phaser.Physics.Arcade.Group,
         enemiesGroup: Phaser.Physics.Arcade.Group,
         coinsGroup?: Phaser.Physics.Arcade.Group,
@@ -82,20 +72,41 @@ export class TerrainManager {
 
         // --- Initialize new groups ---
         this.rowColliderGroup = this.scene.physics.add.staticGroup();
-        // Remove rowVisualsGroup initialization
-        // this.rowVisualsGroup = this.scene.add.group();
 
-        // NEW: Initialize individual tile visuals group
-        this.individualTileVisualsGroup = this.scene.add.group();
-        this.individualTileVisualsGroup.setDepth(0); // Keep tiles behind entities
-        // -----------------------------
+        // --- Create Tilemap and Layer ---
+        this.map = this.scene.make.tilemap({
+            tileWidth: TILE_SIZE,
+            tileHeight: TILE_SIZE,
+            width: this.mapWidthTiles,
+            height: this.mapHeightTiles,
+        });
 
-        // --- Remove tilemap and layer creation ---
+        // Link the tileset image loaded in Preloader (ensure 'terrain_tiles' matches the key used in preload)
+        const tileset = this.map.addTilesetImage(
+            "terrain_tiles", // Key of the loaded tileset image
+            "terrain_tiles", // Optional: Key in the cache, usually same as key
+            TILE_SIZE,
+            TILE_SIZE
+            // 0, // margin
+            // 0 // spacing
+        );
+
+        if (!tileset) {
+            console.error("Failed to load 'terrain_tiles' tileset!");
+            // Handle error appropriately, maybe throw or default
+        } else {
+            this.groundLayer = this.map.createBlankLayer(
+                "Ground", // Layer name
+                tileset,
+                0, // x position
+                0 // y position
+            )!; // Use non-null assertion if confident it exists
+            this.groundLayer.setDepth(0); // Keep tiles behind entities
+        }
+        // --- End Tilemap and Layer Creation ---
 
         // Set initial generation point (below clear rows)
         this.generatedRowsMaxY = this.initialClearRows * TILE_SIZE;
-
-        // Remove collision between spikes and row colliders (spikes are static)
     }
 
     // --- NEW: Return the collider group ---
@@ -185,47 +196,53 @@ export class TerrainManager {
     }
 
     public clearCurrentRow(triggerWorldY: number): boolean {
-        // Calculate the row index *below* the trigger point
         const playerRowYBelow = Math.floor(triggerWorldY / TILE_SIZE) + 1;
-        // Calculate the row *above* that row, which is the row the player is currently on
         const playerCurrentRow = playerRowYBelow - 1;
-
-        // Get the world Y coordinate of the top of the row below
-        const targetRowWorldY = playerRowYBelow * TILE_SIZE;
         const targetTileY = playerRowYBelow; // Row index to clear
 
         const collider = this.rowColliders.get(targetTileY);
-        // Change to check individualTileVisuals map
-        const visuals = this.individualTileVisuals.get(targetTileY);
 
         if (collider) {
             // Remove collider
             this.rowColliderGroup.remove(collider, true, true);
             this.rowColliders.delete(targetTileY);
 
-            // Remove individual visuals
-            if (visuals) {
-                visuals.forEach((tileImage) => {
-                    // Remove from group first to prevent errors if group is destroyed later
-                    this.individualTileVisualsGroup.remove(tileImage, true); // Destroy GameObject
-                });
-                this.individualTileVisuals.delete(targetTileY); // Clear the entry from the map
+            // --- Store tile types before removing them for particle effects ---
+            const tileTypes: TileIndex[] = [];
+
+            for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
+                // Get the tile before removing it
+                const tile = this.map.getTileAt(
+                    tileX,
+                    targetTileY,
+                    true,
+                    this.groundLayer
+                );
+                if (tile) {
+                    tileTypes[tileX] = tile.index as TileIndex;
+                } else {
+                    tileTypes[tileX] = TileIndex.SAND; // Default if no tile found
+                }
+
+                // Remove the tile
+                this.map.removeTileAt(
+                    tileX,
+                    targetTileY,
+                    false,
+                    false,
+                    this.groundLayer
+                );
             }
 
-            // SUPER SIMPLE APPROACH: Just clear all spikes on row ABOVE the target row
+            // Update tilemap layer
+            this.groundLayer?.update();
+
+            // --- Clear Spikes Above (Simplified) ---
             if (this.spikesGroup) {
                 const rowAboveWorldY = playerCurrentRow * TILE_SIZE;
-
                 this.spikesGroup.getChildren().forEach((spikeGO) => {
                     const spike = spikeGO as Spike;
                     if (!spike.active) return;
-
-                    // Spikes are positioned at bottom center with super(scene, x + TILE_SIZE / 2, y + TILE_SIZE, "spikes")
-                    // This means their Y value is approximately at the bottom of the tile
-                    // For a spike on row P, its Y would be near (P+1)*TILE_SIZE
-
-                    // Check if this spike should be removed
-                    // Using a simple Y range check
                     if (
                         spike.y > rowAboveWorldY &&
                         spike.y < rowAboveWorldY + TILE_SIZE * 1.2
@@ -235,53 +252,50 @@ export class TerrainManager {
                 });
             }
 
-            // Trigger particles across the cleared row
+            // --- Trigger particles based on tile types ---
             if (this.particleManager) {
-                // Particles for dirt row
-                const particleY = targetRowWorldY + TILE_SIZE / 2;
+                const particleY = targetTileY * TILE_SIZE + TILE_SIZE / 2;
+
                 for (let i = 0; i < this.mapWidthTiles; i++) {
-                    this.particleManager.triggerParticles(
-                        "sand_tile",
-                        i * TILE_SIZE + TILE_SIZE / 2,
-                        particleY,
-                        { count: 3 }
-                    );
+                    const particleX = i * TILE_SIZE + TILE_SIZE / 2;
+                    const tileType = tileTypes[i];
+
+                    // Get the particle emitter name from the map
+                    const particleName =
+                        TILE_TO_PARTICLE_MAP[tileType] || "sand_tile";
+
+                    if (particleName) {
+                        this.particleManager.triggerParticles(
+                            particleName,
+                            particleX,
+                            particleY,
+                            { count: 5 }
+                        );
+                    }
                 }
             }
 
-            // Emit an event that a row was cleared
             EventBus.emit("dirt-row-cleared", { tileY: targetTileY });
-            return true; // Row cleared
+            return true;
         } else {
-            return false; // No row to clear
+            return false;
         }
-    }
-    /**
-     * Generates a single row's collider and visuals.
-     * @param worldY The world Y coordinate of the top of the row to generate.
-     * @param forceGenerate Skip checks, used for initial platform.
-     */
-    private generateRow(worldY: number, forceGenerate = false): void {
-        this.generateRowOnly(worldY, forceGenerate);
-        this.spawnEntitiesOnRow(worldY);
     }
 
     /**
-     * Generates just the row collider and INDIVIDUAL tile visuals without entities.
+     * Generates just the row collider and places tiles onto the tilemap layer.
      * @param worldY The world Y coordinate of the top of the row to generate.
      * @param forceGenerate Skip checks, used for initial platform.
      */
     private generateRowOnly(worldY: number, forceGenerate = false): void {
-        // Step 1: Validate row generation conditions
         const tileY = Math.floor(worldY / TILE_SIZE);
 
-        // Check if the row is already generated or out of bounds
         if (
             tileY < 0 ||
             tileY >= this.mapHeightTiles ||
-            this.rowColliders.has(tileY) // Check collider map, as visuals are now separate
+            this.rowColliders.has(tileY)
         ) {
-            return; // Out of bounds or already generated
+            return;
         }
 
         // Skip generation above initial platform unless forced
@@ -289,53 +303,42 @@ export class TerrainManager {
             return;
         }
 
-        // Step 2: Create collider for physical interactions
-        const colliderYOffset = TILE_SIZE * 0.9; // Position collider near the bottom of the tile space
-        const colliderHeight = TILE_SIZE * 0.1; // Thin collider strip
+        // Create collider
+        const colliderYOffset = TILE_SIZE * 0.9;
+        const colliderHeight = TILE_SIZE * 0.1;
 
         const collider = this.scene.physics.add.staticImage(
-            0, // Center X (will expand to full width)
-            worldY + colliderYOffset, // Positioned towards the bottom
-            "" // No texture needed
+            0,
+            worldY + colliderYOffset,
+            ""
         );
-        collider.setVisible(false); // Keep it invisible
-        collider.body.setSize(this.mapWidthPixels + 30, colliderHeight); // Set precise physics size
-        collider.body.setOffset(0, 0); // Adjust offset if needed based on origin
-        collider.setData("isRowCollider", true); // Add data marker if needed later
-        collider.setData("rowY", tileY); // Store row index on collider too
+        collider.setVisible(false);
+        collider.body.setSize(this.mapWidthPixels + 30, colliderHeight);
+        collider.body.setOffset(0, 0);
+        collider.setData("isRowCollider", true);
+        collider.setData("rowY", tileY);
 
         this.rowColliderGroup.add(collider);
         this.rowColliders.set(tileY, collider);
 
-        // Step 3: Create Individual Tile Visuals
-        const rowImages: Phaser.GameObjects.Image[] = []; // Array to hold images for this row
+        // Place Tiles onto Tilemap Layer
         for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
-            // Determine texture for this specific tile
-            let textureKey = "sand_tile"; // Changed back to sand_tile
-            // Force dirt for the initial platform row
+            // Determine tile index
+            // Use SAND for the platform, otherwise default to SAND before random variations
+            let tileIndex = forceGenerate ? TileIndex.SAND : TileIndex.SAND;
+
+            // Apply variations only for non-platform rows
             if (!forceGenerate) {
                 const randomChance = Math.random();
                 if (randomChance < this.specialTileChance) {
-                    textureKey =
-                        Math.random() < 0.5 ? "dirt_tile" : "stone_tile";
+                    tileIndex =
+                        Math.random() < 0.5 ? TileIndex.DIRT : TileIndex.STONE;
                 }
             }
 
-            const visualX = tileX * TILE_SIZE + TILE_SIZE / 2;
-            const visualY = worldY + TILE_SIZE / 2;
-
-            const tileImage = this.scene.add.image(
-                visualX,
-                visualY,
-                textureKey
-            );
-            tileImage.setDepth(0); // Keep behind entities
-
-            this.individualTileVisualsGroup.add(tileImage); // Add to the main group
-            rowImages.push(tileImage); // Add to this row's specific array
+            // Place the tile
+            this.map.putTileAt(tileIndex, tileX, tileY, true, this.groundLayer);
         }
-        // Store the array of images for this row
-        this.individualTileVisuals.set(tileY, rowImages);
     }
 
     /**
@@ -619,16 +622,18 @@ export class TerrainManager {
     // Optional: Add cleanup method
     public destroy() {
         this.rowColliders.clear();
-        this.individualTileVisuals.clear(); // Clear the new map
-
         this.rowColliderGroup.destroy(true);
-        this.individualTileVisualsGroup.destroy(true); // Destroy the new group
         this.spikesGroup?.destroy(true);
 
-        // Optional: Clear other groups if managed exclusively here
-        // this.bouldersGroup.destroy(true); // Usually managed by the Scene
-        // this.enemiesGroup.destroy(true);  // Usually managed by the Scene
-        // this.coinsGroup?.destroy(true);    // Usually managed by the Scene
+        // Destroy tilemap resources
+        this.groundLayer?.destroy();
+        this.map?.destroy();
+
+        // Clear references
+        this.particleManager = undefined;
+        this.coinsGroup = undefined;
+        this.spikesGroup = undefined;
+        // bouldersGroup and enemiesGroup are passed in, so ownership might be in the Scene
     }
 
     /**

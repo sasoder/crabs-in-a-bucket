@@ -66,6 +66,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.image("dirt_tile", "assets/tiles/dirt.png");
         this.load.image("stone_tile", "assets/tiles/stone.png");
         this.load.image("sand_tile", "assets/tiles/sand.png");
+        this.load.image("terrain_tiles", "assets/tiles/terrain_tiles.png");
         // this.load.image("gold_tile", "assets/tiles/gold.png");
         this.load.image("coin", "assets/ui/coin.png");
         this.load.image("heart", "assets/ui/heart.png");
