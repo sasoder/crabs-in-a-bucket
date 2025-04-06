@@ -49,7 +49,7 @@ export class TerrainManager {
     private boulderSpawnChanceBase = 0.022;
     private enemySpawnChanceBase = 0.0035;
     private spikeSpawnChanceBase = 0.03; // Add spike spawn chance
-    private coinSpawnChanceBase = 0.07;
+    private coinSpawnChanceBase = 0.1;
     private difficultyScaleFactor = 0.008;
     private specialTileChance = 0.05; // Chance for gold/stone tile (per tile)
     // ---------------------------------------

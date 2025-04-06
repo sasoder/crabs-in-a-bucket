@@ -1129,7 +1129,7 @@ export default class Game extends Phaser.Scene {
         this.vignetteFX = this.cameras.main.postFX.addVignette(
             0.5,
             0.5,
-            0.8,
+            0.88,
             0.5
         );
     }
