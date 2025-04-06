@@ -172,73 +172,101 @@ export default class Game extends Phaser.Scene {
     private setupCollisions(): void {
         if (!this.player) return;
 
-        // Static collisions - just detecting collisions without custom handlers
+        // --- Static Collisions (No Custom Handler Needed Here) ---
         this.physics.add.collider(this.player, this.rowColliderGroup);
-        this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup);
+        // Boulders need impact handler with rows (already set in Boulder constructor)
+        // this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup); // Handled in Boulder
         this.physics.add.collider(this.enemiesGroup, this.rowColliderGroup);
         this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
         this.physics.add.collider(this.tntGroup, this.rowColliderGroup);
 
-        // Get spike group from terrain manager and add collisions if it exists
+        // --- Spike Collisions ---
         const spikesGroup = this.terrainManager.getSpikesGroup();
         if (spikesGroup) {
-            // Just use standard colliders without custom callbacks
-            this.physics.add.collider(this.player, spikesGroup);
-            this.physics.add.collider(this.enemiesGroup, spikesGroup);
-            this.physics.add.collider(spikesGroup, spikesGroup);
-            this.physics.add.collider(spikesGroup, this.bouldersGroup);
-            this.physics.add.collider(spikesGroup, this.tntGroup);
-            this.physics.add.collider(spikesGroup, this.rowColliderGroup);
+            // Player <-> Spikes (Immediate Damage)
+            this.physics.add.collider(
+                // Use collider for solid interaction
+                this.player,
+                spikesGroup,
+                this
+                    .handlePlayerSpikeCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+                undefined,
+                this
+            );
+
+            // Enemy <-> Spikes (Immediate Damage)
+            this.physics.add.collider(
+                // Use collider for solid interaction
+                this.enemiesGroup,
+                spikesGroup,
+                this
+                    .handleEnemySpikeCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+                undefined,
+                this
+            );
+
+            // Boulder <-> Spikes (Boulder Destroys Spike if Moving)
+            this.physics.add.collider(
+                this.bouldersGroup,
+                spikesGroup,
+                this
+                    .handleBoulderSpikeCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+                undefined,
+                this
+            );
+
+            // TNT <-> Spikes (TNT might destroy spike? Optional)
+            this.physics.add.collider(this.tntGroup, spikesGroup); // TNT might just bounce/rest on it
+            // No need for spike-row, spike-spike, spike-boulder (handled above)
         }
 
-        // Add player collision with TNT
-        this.physics.add.collider(this.player, this.tntGroup);
+        // --- Player <-> TNT ---
+        this.physics.add.collider(this.player, this.tntGroup); // Standard physics interaction
 
-        // Add TNT collisions with other entities
+        // --- TNT Collisions ---
         this.physics.add.collider(this.tntGroup, this.bouldersGroup);
         this.physics.add.collider(this.tntGroup, this.enemiesGroup);
 
-        // Collisions between physics groups - Add boulder collision handler
+        // --- Boulder <-> Boulder ---
         this.physics.add.collider(
             this.bouldersGroup,
             this.bouldersGroup,
-            this.handleBoulderBoulderCollision,
+            this.handleBoulderBoulderCollision, // Keep existing handler
             undefined,
             this
         );
 
-        // Enemy-enemy collisions (make them turn around when they bump into each other)
+        // --- Enemy <-> Enemy ---
         this.physics.add.collider(
             this.enemiesGroup,
             this.enemiesGroup,
             (obj1, obj2) => {
-                if (obj1 instanceof Enemy && obj1.active) {
+                // Keep existing turn-around logic
+                if (obj1 instanceof Enemy && obj1.active)
                     obj1.changeDirection();
-                }
-                if (obj2 instanceof Enemy && obj2.active) {
+                if (obj2 instanceof Enemy && obj2.active)
                     obj2.changeDirection();
-                }
             }
         );
 
-        // Dynamic collisions with custom handlers
+        // --- Player <-> Enemy ---
         this.physics.add.overlap(
+            // Overlap is fine for player/enemy interaction check
             this.player,
             this.enemiesGroup,
             this
                 .handlePlayerEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            (object1, object2) => {
-                return (
-                    object1 instanceof Player &&
-                    object2 instanceof Enemy &&
-                    object1.active &&
-                    object2.active
-                );
-            },
+            (obj1, obj2) =>
+                obj1 instanceof Player &&
+                obj2 instanceof Enemy &&
+                obj1.active &&
+                obj2.active,
             this
         );
 
+        // --- Player <-> Boulder ---
         this.physics.add.collider(
+            // Use collider for physics push interaction
             this.player,
             this.bouldersGroup,
             this
@@ -247,24 +275,24 @@ export default class Game extends Phaser.Scene {
             this
         );
 
+        // --- Player <-> Coin ---
         this.physics.add.overlap(
+            // Overlap is fine for collection
             this.player,
             this.coinsGroup,
             this
                 .handlePlayerCoinCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            (object1, object2) => {
-                return (
-                    object1 instanceof Player &&
-                    object2 instanceof Coin &&
-                    object1.active &&
-                    object2.active
-                );
-            },
+            (obj1, obj2) =>
+                obj1 instanceof Player &&
+                obj2 instanceof Coin &&
+                obj1.active &&
+                obj2.active,
             this
         );
 
-        // Enemy-boulder collisions
+        // --- Enemy <-> Boulder ---
         this.physics.add.collider(
+            // Collider for physics interaction
             this.enemiesGroup,
             this.bouldersGroup,
             this
@@ -272,48 +300,119 @@ export default class Game extends Phaser.Scene {
             undefined,
             this
         );
-
-        // Add custom handler for enemy-spike collisions
-        if (spikesGroup) {
-            this.physics.add.collider(
-                this.enemiesGroup,
-                spikesGroup,
-                this
-                    .handleEnemySpikeCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-                undefined,
-                this
-            );
-        }
     }
 
     private handlePlayerBoulderCollision(
-        object1:
+        playerGO:
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile,
-        object2:
+        boulderGO:
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ): void {
-        // Swap objects if needed to ensure player is object1
-        let player: Player;
-        let boulder: Boulder;
-
-        if (object1 instanceof Player && object2 instanceof Boulder) {
-            player = object1;
-            boulder = object2;
-        } else if (object1 instanceof Boulder && object2 instanceof Player) {
-            player = object2;
-            boulder = object1;
-        } else {
-            return; // Neither combination matched
-        }
-
-        if (!player.active || !boulder.active) {
+        if (!(playerGO instanceof Player) || !(boulderGO instanceof Boulder))
             return;
-        }
+        if (!playerGO.active || !boulderGO.active) return;
 
-        // Call player's boulder collision handler
-        player.handleBoulderCollision(boulder);
+        const player = playerGO as Player;
+        const boulder = boulderGO as Boulder;
+
+        // Let the boulder handle dealing damage if it's dangerous
+        const dealtDamage = boulder.dealDamageOnCollision(player);
+
+        // If no damage was dealt (boulder wasn't dangerous or player was safe),
+        // treat it as a push interaction.
+        if (!dealtDamage) {
+            boulder.markAsSafeForPlayer(); // Mark safe even on gentle push
+            // Optional: Apply a small push force to the boulder from the player?
+            // This can be tricky to get right, relying on physics engine might be better.
+        }
+        // Player's specific reaction (like knockback) can be handled in player.takeDamage
+    }
+
+    private handleEnemyBoulderCollision(
+        enemyGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        boulderGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        if (!(enemyGO instanceof Enemy) || !(boulderGO instanceof Boulder))
+            return;
+        if (!enemyGO.active || !boulderGO.active) return;
+
+        const enemy = enemyGO as Enemy;
+        const boulder = boulderGO as Boulder;
+
+        // Let the boulder handle dealing damage if it's dangerous
+        const dealtDamage = boulder.dealDamageOnCollision(enemy);
+
+        if (dealtDamage) {
+            // Enemy might have specific reaction handled in its takeDamage
+        } else {
+            // If boulder wasn't dangerous, enemy might just turn around
+            enemy.changeDirection();
+        }
+    }
+
+    private handlePlayerSpikeCollision(
+        playerGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        spikeGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        if (!(playerGO instanceof Player) || !(spikeGO instanceof Spike))
+            return;
+        if (!playerGO.active || !spikeGO.active) return;
+
+        const player = playerGO as Player;
+        const spike = spikeGO as Spike;
+
+        // Damage player immediately on contact
+        player.takeDamage(spike.damageAmount, "spike"); // Pass damage type if needed
+    }
+
+    private handleEnemySpikeCollision(
+        enemyGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        spikeGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        if (!(enemyGO instanceof Enemy) || !(spikeGO instanceof Spike)) return;
+        if (!enemyGO.active || !spikeGO.active) return;
+
+        const enemy = enemyGO as Enemy;
+        const spike = spikeGO as Spike;
+
+        // Damage enemy immediately
+        enemy.takeDamage(spike.damageAmount); // Spikes might insta-kill enemies or just damage
+        // Optionally make enemy change direction if it survives
+        // enemy.changeDirection();
+    }
+
+    private handleBoulderSpikeCollision(
+        boulderGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        spikeGO:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        if (!(boulderGO instanceof Boulder) || !(spikeGO instanceof Spike))
+            return;
+        if (!boulderGO.active || !spikeGO.active) return;
+
+        const boulder = boulderGO as Boulder;
+        const spike = spikeGO as Spike;
+
+        // Let the boulder handle damage dealing if it's moving dangerously
+        boulder.dealDamageOnCollision(spike);
+        // If the boulder wasn't moving dangerously, they just collide statically.
     }
 
     private setupEventListeners() {
@@ -492,8 +591,7 @@ export default class Game extends Phaser.Scene {
         ) {
             return;
         }
-
-        // Use the player's enemy collision handler
+        // Delegate to player, which should check for stomp vs regular collision
         playerGO.handleEnemyCollision(enemyGO as Enemy);
     }
 
@@ -845,60 +943,6 @@ export default class Game extends Phaser.Scene {
             console.log(
                 `Failed to use ${consumableData.name} (e.g., already at max health).`
             );
-        }
-    }
-
-    /**
-     * Handle an enemy colliding with a spike
-     */
-    handleEnemySpikeCollision(
-        object1:
-            | Phaser.Types.Physics.Arcade.GameObjectWithBody
-            | Phaser.Tilemaps.Tile,
-        object2:
-            | Phaser.Types.Physics.Arcade.GameObjectWithBody
-            | Phaser.Tilemaps.Tile
-    ) {
-        let enemy: Enemy | null = null;
-        let spike: Spike | null = null;
-
-        if (object1 instanceof Enemy && object2 instanceof Spike) {
-            enemy = object1;
-            spike = object2;
-        } else if (object1 instanceof Spike && object2 instanceof Enemy) {
-            spike = object1;
-            enemy = object2;
-        }
-
-        if (!enemy || !spike || !enemy.active || !spike.active) {
-            return;
-        }
-
-        // Check if enemy is landing on the spike (velocity is downward)
-        const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
-        const spikeBody = spike.body as Phaser.Physics.Arcade.Body;
-
-        if (
-            enemyBody.velocity.y > 0 &&
-            enemyBody.bottom >= spikeBody.top &&
-            enemyBody.y - enemyBody.deltaY() < spikeBody.top
-        ) {
-            // Enemy is landing on the spike, apply damage
-            enemy.handleSpikeDamage(spike);
-        } else {
-            // Enemy is hitting spike from the side, just change direction and apply small knockback
-            enemy.changeDirection();
-
-            // Apply a small knockback in the opposite direction
-            const knockbackForce = 100;
-            const knockbackY = -120; // Small upward bounce
-
-            // Determine horizontal direction based on enemy's current direction
-            const knockbackX =
-                enemy.x < spike.x ? -knockbackForce : knockbackForce;
-
-            // Apply the knockback velocity
-            enemy.setVelocity(knockbackX, knockbackY);
         }
     }
 }

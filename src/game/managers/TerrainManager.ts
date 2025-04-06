@@ -350,14 +350,14 @@ export class TerrainManager {
                 spaceOccupied = true; // Mark space as occupied
             } else if (Math.random() < currentSpikeChance) {
                 if (this.spikesGroup) {
-                    // Create spike - it adds itself to physics/scene
-                    // Spawn Y adjusted to place origin at top of the row tile space
+                    // Spawn Y is now the top of the row's tile space,
+                    // as the Spike's origin is at its base.
                     const spike = new Spike(
                         this.scene,
-                        spawnWorldX,
-                        spikeSpawnY - TILE_SIZE / 2
+                        spawnWorldX - TILE_SIZE / 2, // Adjust X back because origin is center now
+                        spikeSpawnY // Y is the top of the row
                     );
-                    // Add to the static group (doesn't happen automatically for static groups)
+                    // Add to the static group
                     this.spikesGroup.add(spike);
                     spaceOccupied = true; // Mark space as occupied
                 }

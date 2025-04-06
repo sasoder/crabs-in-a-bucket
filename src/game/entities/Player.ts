@@ -6,11 +6,12 @@ import { Boulder } from "./Boulder"; // Import Boulder type
 import { Enemy } from "./Enemy"; // Import Enemy type
 import Game from "../scenes/Game";
 import { Relic } from "../data/Relics";
+import { Coin } from "./Coin";
 // --- Import new entity types ---
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private moveSpeed = 80; // Base speed
-    private jumpVelocity = -200; // Base jump velocity
+    private jumpVelocity = -130; // Base jump velocity
     private bounceVelocity = -100; // Bounce after stomp
     private digCooldown = 150; // Milliseconds between digs
     private lastDigTime = 0;
@@ -273,21 +274,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             const coinReward = slayerStacks * slayerBonusPerStack; // Calculate total bonus
 
             if (coinReward > 0) {
-                const currentCoins = this.scene.registry.get("coins") as number;
-                this.scene.registry.set("coins", currentCoins + coinReward);
-
-                // Update total coins collected
-                let totalCoinsCollected =
-                    (this.scene.registry.get(
-                        "totalCoinsCollected"
-                    ) as number) || 0;
-                totalCoinsCollected += coinReward;
-                this.scene.registry.set(
-                    "totalCoinsCollected",
-                    totalCoinsCollected
+                Coin.spawn(
+                    this.gameScene,
+                    this.gameScene.coinsGroup,
+                    this.x,
+                    this.y
                 );
-
-                EventBus.emit("stats-changed"); // Update UI if coins changed
             }
 
             return true;

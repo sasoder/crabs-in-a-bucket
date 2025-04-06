@@ -6,58 +6,78 @@ import Game from "../scenes/Game";
 
 // Changed to extend Sprite directly for a simpler static object
 export class Spike extends Phaser.Physics.Arcade.Sprite {
-    protected health: number;
     protected gameScene: Game;
+    public readonly damageAmount = 1; // Damage dealt to player/enemies
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
-        super(scene, x, y, "spikes");
+        // Position origin at bottom-center for easier placement on rows
+        super(scene, x + TILE_SIZE / 2, y + TILE_SIZE, "spikes");
         this.gameScene = scene as Game;
-        this.health = 1; // Set initial health
 
-        // Add to scene and enable physics
         scene.add.existing(this);
         scene.physics.add.existing(this, true); // true for static
 
-        // Set physics body properties
-        this.body?.setSize(TILE_SIZE * 0.7, TILE_SIZE * 0.7);
-        this.body?.setOffset(TILE_SIZE * 0.15, TILE_SIZE * 0.15);
+        // Adjust body size and offset for bottom-center origin
+        const bodyWidth = TILE_SIZE * 0.7;
+        const bodyHeight = TILE_SIZE * 0.7;
+        this.body?.setSize(bodyWidth, bodyHeight);
+        // Offset Y upwards so the body aligns with the visual spike tip
+        this.body?.setOffset(
+            (TILE_SIZE - bodyWidth) / 2,
+            TILE_SIZE - bodyHeight // Offset from bottom origin
+        );
+
+        // Add a property to easily identify spikes
+        this.setData("isSpike", true);
     }
 
     /**
-     * Take damage and handle destruction
+     * Spikes themselves don't take damage in the conventional sense,
+     * but they can be destroyed instantly by certain interactions (like boulders).
      */
     public takeDamage(amount: number = 1): boolean {
         if (!this.active) return false;
 
-        this.health -= amount;
+        // Any amount of damage destroys the spike
+        if (amount > 0) {
+            this.destroySequence();
+            return false; // Was destroyed
+        }
+        return true; // Still active (if damage was 0?)
+    }
 
-        // Visual feedback
-        this.scene.tweens.add({
-            targets: this,
-            alpha: 0.5,
-            duration: 100,
-            yoyo: true,
-        });
+    private destroySequence(): void {
+        if (!this.active) return;
 
-        if (this.health <= 0) {
-            // Create destruction particles
-            if (this.gameScene.particleManager) {
-                this.gameScene.particleManager.triggerParticles(
-                    "spikes",
-                    this.x,
-                    this.y,
-                    { count: 5 }
-                );
-            }
+        this.setActive(false);
+        this.setVisible(false);
 
-            // Play destruction sound
-            this.gameScene.sound.play("hit");
-
-            this.destroy();
-            return false;
+        // Trigger destruction particles
+        if (this.gameScene.particleManager) {
+            this.gameScene.particleManager.triggerParticles(
+                "spikes", // Use spike texture key or a different particle type
+                this.x,
+                this.y - TILE_SIZE / 2, // Emit from near the visual center
+                {
+                    count: 8,
+                    speed: 70, // Use a single number instead of min/max object
+                    scale: 0.4, // Use a single number instead of start/end object
+                }
+            );
         }
 
-        return true;
+        // Play destruction sound
+        this.gameScene.sound.play("hit"); // Or a specific spike break sound
+
+        // Use delayed call for proper cleanup after effects
+        this.scene.time.delayedCall(50, () => {
+            super.destroy();
+        });
+    }
+
+    // Override destroy for safety, though not strictly needed now
+    destroy(fromScene?: boolean): void {
+        super.destroy(fromScene);
     }
 }
 

@@ -2,56 +2,58 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../constants";
 import Game from "../scenes/Game";
+import { Player } from "./Player";
+import { Enemy } from "./Enemy";
+import { Spike } from "./Spike";
 
 export class Boulder extends Phaser.Physics.Arcade.Image {
     protected gameScene: Game;
     private health = 3;
-    private damageAmount = 1; // Default damage amount
-    private damageThreshold = 150; // Min velocity difference to cause damage for player
-    private movementThreshold = 35; // Balanced threshold for determining if boulder is moving enough to damage enemies
-    private _isDangerous = false; // Track if boulder is in a dangerous state
-    private lastVelocityMagnitude = 0; // Track the last velocity for more consistent state management
-    private safeForPlayer = false; // Track if boulder was just pushed by player
-    private safeDuration = 500; // Increased from 300 to 500ms for more reliable safety period
-    private safeTimer?: Phaser.Time.TimerEvent; // Timer for resetting safe status
-    private lastPlayerInteraction = 0; // Track when player last interacted with boulder
+    private damageAmount = 1;
+    private safeForPlayer = false;
+    private safeDuration = 300;
+    private safeTimer?: Phaser.Time.TimerEvent;
 
-    // For tracking falling impact
-    private previousVelocityY = 0; // Track previous velocity for impact detection
-    private fallingVelocityThreshold = 120; // Minimum velocity to cause impact damage
-    private lastImpactTime = 0; // Prevent multiple impacts in quick succession
-    private impactCooldown = 150; // Cooldown between allowed impacts in ms
+    private previousVelocityY = 0;
+    private lastImpactTime = 0;
+    private readonly LANDING_IMPACT_COOLDOWN = 150;
+
+    private readonly DANGEROUS_VELOCITY_THRESHOLD = 50;
+    private readonly IMPACT_DAMAGE_VELOCITY_Y = 100;
+    private readonly WEAR_AND_TEAR_DAMAGE = 1;
+
+    // Flag to track if we were falling
+    private wasFalling = false;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
-        // Assuming you have a 'boulder' texture loaded
-        super(scene, x + TILE_SIZE / 2, y + TILE_SIZE / 2, "boulder"); // Center in tile
+        super(scene, x + TILE_SIZE / 2, y + TILE_SIZE / 2, "boulder");
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.gameScene = scene as Game;
 
-        this.setCollideWorldBounds(true); // Let them fall off-screen
-        this.setBounce(0.3); // Slightly higher bounce for more dynamic collisions
-        this.setGravityY(300); // Adjust gravity as needed
-        this.setImmovable(false); // They should be pushable/affected by physics
-        this.setFriction(0.2); // Add friction for realistic rolling
-        this.setMass(2); // Higher mass than default for momentum calculations
+        this.setCollideWorldBounds(true);
+        this.setBounce(0.2);
+        this.setGravityY(300);
+        this.setImmovable(false);
+        this.setFriction(0.3);
+        this.setMass(2);
 
-        // Enable angular velocity for rotation
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.allowRotation = true;
-            body.setAngularDrag(10);
+            body.setAngularDrag(20);
+            body.setBounce(0);
+            body.useDamping = true;
+            body.setDrag(0.98);
+
+            const radius = TILE_SIZE * 0.4;
+            body.setCircle(
+                radius,
+                (this.width - radius * 2) / 2,
+                (this.height - radius * 2) / 2
+            );
         }
 
-        // Make the boulder circular
-        const radius = TILE_SIZE * 0.4;
-        this.body?.setCircle(
-            radius,
-            (this.width - radius * 2) / 2, // Center the circle body
-            (this.height - radius * 2) / 2
-        );
-
-        // Add collision with the row colliders
         if (this.gameScene.terrainManager) {
             this.scene.physics.add.collider(
                 this,
@@ -61,244 +63,317 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 this
             );
         }
-
-        // Boulder-boulder collisions are handled in Game.ts
     }
 
-    preUpdate(time: number, delta: number): void {
-        // Update dangerous state on every physics frame for reliability
-        this.updateDangerousState();
+    update(time: number, delta: number): void {
+        if (!this.body) return;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+
+        // Track if we're falling
+        if (body.velocity.y > this.IMPACT_DAMAGE_VELOCITY_Y) {
+            this.wasFalling = true;
+        }
 
         // Store previous velocity for impact detection
-        if (this.body) {
-            this.previousVelocityY = this.body.velocity.y;
-        }
+        this.previousVelocityY = body.velocity.y;
 
-        // Update rotation based on horizontal velocity (moved from update to preUpdate)
-        if (this.body && Math.abs(this.body.velocity.x) > 10) {
-            // Calculate rotation based on velocity direction
-            const rotationSpeed = -this.body.velocity.x * 0.01;
+        if (Math.abs(body.velocity.x) > 5) {
+            const rotationSpeed = -body.velocity.x * 0.008;
             this.rotation += rotationSpeed;
+        } else {
+            this.setAngularVelocity(body.angularVelocity * 0.9);
         }
+
+        // Check for landing damage on each update
+        this.checkForLandingDamage();
     }
 
-    update() {
-        // This method can still be called from Game.ts, but we move critical
-        // physics-dependent logic to preUpdate for reliability
-    }
-
-    /**
-     * Physics collision callback that handles impacts
-     */
     private handleImpact: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
-        _obj1,
-        _obj2
+        _boulder,
+        _rowCollider
     ) => {
+        // Always check for landing damage on collision
         this.checkForLandingDamage();
     };
 
-    /**
-     * Check if the boulder should take damage from landing
-     */
     private checkForLandingDamage(): void {
         if (!this.body || !this.active) return;
 
+        const body = this.body as Phaser.Physics.Arcade.Body;
         const currentTime = this.scene.time.now;
 
-        // Check for a significant impact (falling and then stopping)
-        if (
-            this.previousVelocityY > this.fallingVelocityThreshold &&
-            Math.abs(this.body.velocity.y) < 20 && // Now relatively stopped
-            currentTime - this.lastImpactTime > this.impactCooldown // Not recently impacted
-        ) {
-            // Calculate damage based on fall velocity
-            const impactForce =
-                this.previousVelocityY / this.fallingVelocityThreshold;
-            const damageToDeal = Math.min(2, Math.ceil(impactForce * 0.8));
+        // Boulder must have been falling and now be nearly stopped vertically
+        const stoppedFalling = Math.abs(body.velocity.y) < 10;
+        const cooldownOver =
+            currentTime - this.lastImpactTime > this.LANDING_IMPACT_COOLDOWN;
 
-            if (damageToDeal > 0) {
-                this.lastImpactTime = currentTime;
-                this.takeDamage(damageToDeal);
+        // Check if we were falling and have now stopped
+        if (this.wasFalling && stoppedFalling && cooldownOver) {
+            console.log("Boulder landed with impact, taking damage");
+            this.lastImpactTime = currentTime;
+            this.wasFalling = false; // Reset falling state
 
-                // Add visual feedback - subtle flash and shake
-                this.gameScene.tweens.add({
-                    targets: this,
-                    alpha: { from: 0.4, to: this.alpha },
-                    duration: 150,
-                    ease: "Power2",
-                });
+            // Take damage from the impact
+            this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
 
-                // Create dust particles on impact if available
-                if (this.gameScene.particleManager) {
-                    this.gameScene.particleManager.triggerParticles(
-                        "dirt_tile",
-                        this.x,
-                        this.y + this.height / 2,
-                        { count: 5 }
-                    );
+            // Play visual and audio effects
+            this.playImpactEffects();
+
+            // Damage anything below
+            this.damageEntitiesBelow();
+        }
+    }
+
+    private playImpactEffects(): void {
+        if (!this.active || !this.body) return;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+
+        this.scene.sound.play("hit", { volume: 0.6 });
+        this.gameScene.tweens.add({
+            targets: this,
+            scaleX: 1.1,
+            scaleY: 0.9,
+            duration: 80,
+            yoyo: true,
+            ease: "Sine.easeInOut",
+        });
+        if (this.gameScene.particleManager) {
+            this.gameScene.particleManager.triggerParticles(
+                "boulder",
+                this.x,
+                body.bottom,
+                {
+                    count: 8,
+                    speed: 15,
+                    lifespan: 500,
+                    scale: 0.8,
+                }
+            );
+        }
+    }
+
+    private damageEntitiesBelow(): void {
+        if (!this.body || !this.active) return;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+
+        const impactRadius = TILE_SIZE * 0.6;
+        const impactCheckY = body.bottom + TILE_SIZE * 0.5;
+
+        const targets: Phaser.GameObjects.GameObject[] = [
+            ...(this.gameScene.enemiesGroup?.getChildren() || []),
+            ...(this.gameScene.terrainManager
+                ?.getSpikesGroup()
+                ?.getChildren() || []),
+        ];
+        if (this.gameScene.player) {
+            targets.push(this.gameScene.player);
+        }
+
+        targets.forEach((targetGO) => {
+            if (
+                !(
+                    targetGO instanceof Player ||
+                    targetGO instanceof Enemy ||
+                    targetGO instanceof Spike
+                ) ||
+                !targetGO.active
+            ) {
+                return;
+            }
+
+            const target = targetGO;
+            let targetBody:
+                | Phaser.Physics.Arcade.Body
+                | Phaser.Physics.Arcade.StaticBody
+                | null = null;
+
+            if ("body" in target && target.body) {
+                targetBody = target.body;
+            }
+
+            if (!targetBody) return;
+
+            if (
+                Math.abs(targetBody.center.x - this.x) < impactRadius &&
+                targetBody.center.y > body.bottom &&
+                targetBody.center.y < impactCheckY
+            ) {
+                if (target instanceof Enemy) {
+                    target.takeDamage(999);
+                    console.log("Boulder landed on enemy");
+                } else if (target instanceof Player && !this.safeForPlayer) {
+                    target.takeDamage(1);
+                    console.log("Boulder landed on player");
+                } else if (target instanceof Spike) {
+                    target.takeDamage(999);
+                    console.log("Boulder landed on spike");
                 }
             }
-        }
+        });
     }
 
-    /**
-     * Update the boulder's dangerous state based on its current velocity
-     */
-    private updateDangerousState() {
-        if (!this.body) return;
+    public dealDamageOnCollision(
+        otherObject:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ): boolean {
+        const isMovingFast = this.isMovingDangerously();
+        const isFragileTarget = otherObject instanceof Spike;
 
-        // Calculate velocity magnitude (speed)
-        const velocityMagnitude = Math.sqrt(
-            Math.pow(this.body.velocity.x, 2) +
-                Math.pow(this.body.velocity.y, 2)
-        );
-
-        // Use hysteresis to prevent rapid flipping between states
-        // Only change state when crossing threshold by a significant amount
-        if (
-            !this._isDangerous &&
-            velocityMagnitude > this.movementThreshold + 10
-        ) {
-            this._isDangerous = true;
-        } else if (
-            this._isDangerous &&
-            velocityMagnitude < this.movementThreshold - 10
-        ) {
-            this._isDangerous = false;
+        if (!isMovingFast && !isFragileTarget) {
+            return false;
         }
 
-        // Store the last velocity magnitude
-        this.lastVelocityMagnitude = velocityMagnitude;
+        let damaged = false;
+
+        if (otherObject instanceof Player) {
+            if (isMovingFast && !this.safeForPlayer) {
+                otherObject.takeDamage(this.damageAmount);
+                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
+                damaged = true;
+                this.playCollisionHitEffect();
+            }
+            this.markAsSafeForPlayer();
+        } else if (otherObject instanceof Enemy) {
+            if (isMovingFast) {
+                otherObject.takeDamage(999);
+                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
+                damaged = true;
+                this.playCollisionHitEffect();
+            }
+        } else if (otherObject instanceof Spike) {
+            otherObject.takeDamage(999);
+            if (isMovingFast) {
+                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
+            }
+            damaged = true;
+            this.playCollisionHitEffect();
+        } else if (otherObject instanceof Boulder) {
+            // Boulder-boulder damage check happens in Game.ts to avoid double hits
+        }
+
+        return damaged;
     }
 
-    /**
-     * Mark this boulder as safe for player after being pushed
-     * It will still be dangerous to enemies
-     */
+    private playCollisionHitEffect(): void {
+        this.scene.sound.play("hit", { volume: 0.4 });
+        this.scene.tweens.add({
+            targets: this,
+            angle: this.angle + Phaser.Math.Between(-15, 15),
+            duration: 50,
+            yoyo: true,
+        });
+    }
+
+    public isMovingDangerously(): boolean {
+        if (!this.body || !this.active) return false;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        const velocityMagnitude = body.velocity.length();
+        return velocityMagnitude > this.DANGEROUS_VELOCITY_THRESHOLD;
+    }
+
     markAsSafeForPlayer(): void {
-        // Cancel any existing timers first
         if (this.safeTimer) {
             this.safeTimer.remove();
         }
-
         this.safeForPlayer = true;
-        this.lastPlayerInteraction = this.scene.time.now;
 
-        // Set timer to reset the safe status
         this.safeTimer = this.scene.time.delayedCall(this.safeDuration, () => {
             this.safeForPlayer = false;
             this.safeTimer = undefined;
         });
     }
 
-    /**
-     * Get velocity information for damage calculations
-     */
     getVelocity(): Phaser.Math.Vector2 {
-        if (!this.body) return new Phaser.Math.Vector2(0, 0);
-        return this.body.velocity;
+        if (!this.body) return Phaser.Math.Vector2.ZERO;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        return body.velocity;
     }
 
-    /**
-     * Get the current velocity magnitude
-     */
     getVelocityMagnitude(): number {
-        return this.lastVelocityMagnitude;
+        if (!this.body) return 0;
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        return body.velocity.length();
     }
 
-    /**
-     * Check if the boulder is moving enough to cause damage to enemies
-     * Requires significant movement to cause damage
-     */
-    isMoving(): boolean {
-        if (!this.body) return false;
-
-        // Calculate velocity magnitude (speed)
-        const velocityMagnitude = Math.sqrt(
-            Math.pow(this.body.velocity.x, 2) +
-                Math.pow(this.body.velocity.y, 2)
-        );
-
-        return velocityMagnitude > this.movementThreshold;
-    }
-
-    /**
-     * Check if the boulder is in a dangerous state
-     * @param forPlayer If true, check if dangerous specifically for player
-     */
-    isDangerous(forPlayer: boolean = false): boolean {
-        // For player, honor the safe period after being pushed
-        if (forPlayer && this.safeForPlayer) {
-            return false;
-        }
-
-        // Require more movement (higher threshold) to damage player than enemies
-        if (forPlayer) {
-            return (
-                this._isDangerous &&
-                this.lastVelocityMagnitude > this.movementThreshold * 1.5
-            );
-        }
-
-        return this._isDangerous;
-    }
-
-    /**
-     * Get the damage threshold for player collisions
-     */
-    public getDamageThreshold(): number {
-        return this.damageThreshold;
-    }
-
-    /**
-     * Get the current damage amount
-     */
     public getDamageAmount(): number {
         return this.damageAmount;
     }
 
-    /**
-     * Take damage when the boulder damages something else
-     * @param amount Amount of damage to take (defaults to 1)
-     * @returns true if the boulder is still intact, false if destroyed
-     */
     public takeDamage(amount: number = 1): boolean {
+        if (!this.active) return false;
+
         this.health -= amount;
+        console.log(
+            `Boulder took ${amount} damage, health now: ${this.health}`
+        );
 
-        // Update opacity based on remaining health
-        const newOpacity = Math.max(0.3, this.health / 3);
-        this.setAlpha(newOpacity);
-
-        // Add a flash effect to show damage
         this.scene.tweens.add({
             targets: this,
-            alpha: { from: 0.1, to: newOpacity },
-            duration: 200,
-            ease: "Power2",
+            alpha: {
+                from: Math.max(0.1, this.health / 3 - 0.3),
+                to: this.health / 3,
+            },
+            duration: 150,
+            ease: "Power1",
+            onStart: () => {
+                if (this.alpha < 0.1) this.setAlpha(0.1);
+            },
+            onComplete: () => {
+                if (this.active) this.setAlpha(this.health / 3);
+            },
         });
 
-        // If boulder is destroyed, trigger particles if available
         if (this.health <= 0) {
-            if (this.gameScene.particleManager) {
-                this.gameScene.particleManager.triggerParticles(
-                    "dirt_tile",
-                    this.x,
-                    this.y,
-                    { count: 10 }
-                );
-            }
-            this.destroy();
+            this.explode();
             return false;
         }
 
         return true;
     }
 
-    // Ensure timers are cleaned up if the boulder is destroyed
+    private explode(): void {
+        if (!this.active) return;
+
+        this.setActive(false);
+        this.setVisible(false);
+        if (this.body) {
+            this.body.enable = false;
+        }
+
+        this.scene.sound.play("hit");
+
+        if (this.gameScene.particleManager) {
+            this.gameScene.particleManager.triggerParticles(
+                "boulder",
+                this.x,
+                this.y,
+                {
+                    count: 15,
+                    speed: 25,
+                    lifespan: 450,
+                    scale: 0.8,
+                }
+            );
+        }
+
+        if (this.safeTimer) {
+            this.safeTimer.remove();
+            this.safeTimer = undefined;
+        }
+
+        this.scene.time.delayedCall(50, () => {
+            super.destroy();
+        });
+    }
+
     destroy(fromScene?: boolean) {
         if (this.safeTimer) {
             this.safeTimer.remove();
             this.safeTimer = undefined;
+        }
+        if (this.body) {
+            this.body.enable = false;
         }
         super.destroy(fromScene);
     }

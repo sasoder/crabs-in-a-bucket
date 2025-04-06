@@ -168,7 +168,7 @@ export class Enemy extends BaseGameEntity {
         this.recentBoulderCollisions.set(boulder, currentTime);
 
         // Use boulder's isDangerous method - no special handling for enemies
-        if (boulder.isDangerous()) {
+        if (boulder.isMovingDangerously()) {
             // Apply damage to enemy
             this.takeDamage(boulder.getDamageAmount());
 
