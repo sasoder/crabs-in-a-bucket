@@ -13,7 +13,7 @@ function launch(containerId: string): Phaser.Game {
             default: "arcade",
             arcade: {
                 gravity: { x: 0, y: 400 },
-                debug: true,
+                debug: false,
             },
         },
         render: {

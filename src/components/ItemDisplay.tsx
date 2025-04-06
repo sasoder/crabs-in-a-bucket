@@ -133,12 +133,25 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                     )}
                 </div>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[200px] z-50">
-                <p className="text-2xl mb-1">{item.name}</p>
-                <p className="text-base text-secondary mt-1">
-                    {item.description}
+            <TooltipContent
+                side="bottom"
+                className={cn(
+                    "max-w-[200px] z-50",
+                    "bg-[#5a3d2b] border-[#a0704f] text-amber-100" // Chest colors
+                )}
+                style={{
+                    filter: "drop-shadow(0px 2px 15px rgba(0,0,0,0.5))",
+                }}
+            >
+                <p className="text-2xl mb-1 font-bold text-white">
+                    {item.name}
                 </p>
-                <p className="text-lg text-green-300">{item.effect}</p>
+                <p className="text-base mt-1">{item.description}</p>
+                {item.effect && (
+                    <p className="text-base text-green-300 mt-1">
+                        {item.effect}
+                    </p>
+                )}
             </TooltipContent>
         </Tooltip>
     );

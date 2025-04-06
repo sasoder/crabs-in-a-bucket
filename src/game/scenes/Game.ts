@@ -47,6 +47,15 @@ export default class Game extends Phaser.Scene {
 
     private heartStoneTimer?: Phaser.Time.TimerEvent; // Timer for Heart Stone relic
 
+    // Post processing FX
+    private bloomFX?: Phaser.FX.Bloom;
+    private vignetteFX?: Phaser.FX.Vignette; // Added for Vignette
+    private glowFX?: Phaser.GameObjects.Components.FX; // Keep for player glow
+    private fxTimer?: Phaser.Time.TimerEvent; // Timer for reapplying effects
+
+    // FX intensity control
+    private bloomIntensity = 0.7; // Increased intensity for softer focus effect
+
     constructor() {
         super("Game");
     }
@@ -114,7 +123,7 @@ export default class Game extends Phaser.Scene {
         this.coinsGroup.setDepth(10);
 
         this.particleManager = new ParticleManager(this);
-        this.particleManager.initializeEmitters(["dirt_tile", "enemy"]);
+        this.particleManager.initializeEmitters(["dirt_tile", "enemy", "coin"]);
 
         this.terrainManager = new TerrainManager(
             this,
@@ -149,6 +158,9 @@ export default class Game extends Phaser.Scene {
         // Set the player's depth to be above the tiles, same as other entities
         this.player.setDepth(10);
 
+        const backgroundSound = this.sound.add("bg"); // here "true" means to loop
+
+        backgroundSound.play({ volume: 1, loop: true });
         // Create TNT group
         this.tntGroup = this.physics.add.group({
             classType: TNT,
@@ -171,7 +183,11 @@ export default class Game extends Phaser.Scene {
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
-        this.registry.set("consumables", [] as string[]);
+        this.registry.set("consumables", [
+            "HEART_ROOT",
+            "HEART_ROOT",
+            "HEART_ROOT",
+        ] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
 
@@ -182,6 +198,10 @@ export default class Game extends Phaser.Scene {
         // --- End Heart Stone Timer ---
 
         EventBus.emit("current-scene-ready", this);
+
+        // --- Add Post Processing FX ---
+        this.applyPostProcessingEffects();
+        // --- End Post Processing FX ---
     }
 
     /**
@@ -668,6 +688,30 @@ export default class Game extends Phaser.Scene {
                 this.cameras.main.height / this.cameras.main.zoom;
             this.terrainManager.update(cameraBottomY);
         }
+
+        // --- Update Vignette to follow player (relative to camera center) ---
+        if (
+            this.vignetteFX &&
+            this.player &&
+            this.cameras.main.width > 0 &&
+            this.cameras.main.height > 0
+        ) {
+            // Calculate player's position relative to the camera viewport (0 to 1) using worldView
+            const worldView = this.cameras.main.worldView;
+            const playerViewportX =
+                (this.player.x - worldView.x) / worldView.width;
+            const playerViewportY =
+                (this.player.y - worldView.y) / worldView.height;
+
+            // Clamp values to keep the vignette center within the 0-1 range
+            const clampedX = Phaser.Math.Clamp(playerViewportX, 0, 1);
+            const clampedY = Phaser.Math.Clamp(playerViewportY, 0, 1);
+
+            // Update vignette center coordinates (Reverted Y-axis change)
+            this.vignetteFX.x = clampedX;
+            this.vignetteFX.y = 1 - clampedY;
+        }
+        // --- End Vignette Update ---
     }
 
     emitStatsUpdate(force = false) {
@@ -859,6 +903,14 @@ export default class Game extends Phaser.Scene {
         this.heartStoneTimer = undefined; // Ensure property is cleared
 
         console.log("Game scene shutdown complete.");
+
+        // Clean up post-processing effects
+        // Reset camera effects - check if bloomFX exists before removing
+        if (this.bloomFX) {
+            // Use the generic remove method for Post FX pipelines
+            this.cameras.main.postFX.remove(this.bloomFX);
+            this.bloomFX = undefined;
+        }
     }
 
     checkEntitiesFalling(clearedTileY: number) {
@@ -1120,6 +1172,40 @@ export default class Game extends Phaser.Scene {
             this.heartStoneTimer?.remove();
             this.heartStoneTimer = undefined;
         }
+    }
+
+    /**
+     * Apply post-processing effects to the main camera
+     */
+    private applyPostProcessingEffects(): void {
+        // Clear any existing effects first
+        if (this.bloomFX) {
+            this.cameras.main.postFX.remove(this.bloomFX);
+            this.bloomFX = undefined;
+        }
+        if (this.vignetteFX) {
+            this.cameras.main.postFX.remove(this.vignetteFX);
+            this.vignetteFX = undefined;
+        }
+
+        // Apply bloom effect
+        this.bloomFX = this.cameras.main.postFX.addBloom(
+            0xffffff,
+            1,
+            1,
+            1,
+            this.bloomIntensity
+        );
+
+        // Apply vignette effect
+        this.vignetteFX = this.cameras.main.postFX.addVignette(
+            0.5,
+            0.5,
+            0.85,
+            0.5
+        );
+
+        console.log("Post-processing effects applied");
     }
 }
 

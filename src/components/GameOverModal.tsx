@@ -33,7 +33,7 @@ type RelicWithCount = Relic & { count: number };
 
 // Basic wood texture simulation using gradients and color stops (similar to ShopModal)
 const woodFrameStyle =
-    "border-4 border-t-[#a0704f] border-l-[#a0704f] border-b-[#5a3d2b] border-r-[#5a3d2b] p-1";
+    "border-8 border-t-[#b88a5f] border-l-[#b88a5f] border-b-[#4a2e1e] border-r-[#4a2e1e] p-1"; // Simulate thicker, beveled wood frame
 
 export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
     const [collectedRelics, setCollectedRelics] = useState<RelicWithCount[]>(
@@ -85,35 +85,41 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
         >
             <AlertDialogContent
                 className={cn(
-                    "sm:max-w-[450px] p-0 border-none shadow-none border-radius", // Remove default styling
-                    "bg-[#3a2416]" // Dark wood base
+                    "sm:max-w-[475px] p-0 border-none shadow-none", // Match ShopModal size and base style
+                    "bg-[#3a2416]" // Dark wood base like ShopModal
                 )}
             >
                 <div className={cn(woodFrameStyle)}>
                     {" "}
                     {/* Outer frame */}
-                    <div className={cn("p-4 bg-[#d2b48c] rounded")}>
-                        {" "}
-                        {/* Inner parchment-like panel */}
+                    <div
+                        className={cn(
+                            "p-6 bg-[#5a3d2b] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" // Inner panel like ShopModal, increased padding
+                        )}
+                    >
                         <AlertDialogHeader className="mb-4 text-center">
                             <AlertDialogTitle
                                 className={cn(
-                                    "text-4xl text-[#5a3d2b] text-center"
-                                )} // Dark brown title
+                                    "text-4xl text-amber-100 text-center" // Lighter title for dark bg
+                                )}
                             >
                                 Game Over!
                             </AlertDialogTitle>
                             <AlertDialogDescription
                                 className={cn(
-                                    "text-xl text-secondary px-6 text-[#7b5e45] text-center" // Lighter brown text
+                                    "text-xl text-amber-200/80 px-6 text-center" // Lighter description
                                 )}
                             >
                                 Your journey ends here... for now.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
-                        {/* Stats Section */}
-                        <div className="text-center my-4 p-2 bg-[#c1a37e] rounded shadow-inner">
-                            <p className="text-2xl mb-1 text-[#5a3d2b]">
+                        {/* Stats Section - Styled similarly to Shop sections */}
+                        <div
+                            className={cn(
+                                "my-2 p-4 bg-[#c1a37e] rounded shadow-inner border border-[#a0704f]" // Match shop item section style
+                            )}
+                        >
+                            <p className="text-2xl mb-1 text-[#5a3d2b] text-center">
                                 Final Depth:{" "}
                                 <span className="font-bold">{data.score}</span>{" "}
                                 meters
@@ -129,20 +135,21 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                 </div>
                             </div>
                         </div>
-                        <Separator className="my-4 bg-[#a0704f]" />
+                        <Separator className="my-4 bg-[#a0704f]" />{" "}
+                        {/* Keep separator for structure */}
                         {/* Relics Collected Section */}
-                        <div
+                        <h3
                             className={cn(
-                                "p-4 my-2 bg-[#c1a37e] rounded shadow-inner"
+                                "text-3xl mb-3 text-center text-amber-300" // Match shop section header
                             )}
                         >
-                            <h3
-                                className={cn(
-                                    "text-2xl mb-3 text-center text-[#5a3d2b]"
-                                )}
-                            >
-                                Relics Collected:
-                            </h3>
+                            Relics Collected:
+                        </h3>
+                        <div
+                            className={cn(
+                                "p-4 my-2 bg-[#c1a37e] rounded shadow-inner border border-[#a0704f]" // Match shop item section style
+                            )}
+                        >
                             <div className="flex flex-wrap justify-center gap-4 py-2 min-h-[60px] items-center">
                                 {collectedRelics.length > 0 ? (
                                     collectedRelics.map((relicWithCount) => (
@@ -158,7 +165,9 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                         />
                                     ))
                                 ) : (
-                                    <p className="text-sm text-[#7b5e45] opacity-80">
+                                    <p className="text-sm text-[#5a3d2b] opacity-80">
+                                        {" "}
+                                        {/* Darker text for lighter bg */}
                                         None this run.
                                     </p>
                                 )}

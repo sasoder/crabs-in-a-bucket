@@ -29,7 +29,7 @@ export const RELICS: Record<string, Relic> = {
     },
     FEATHER_WEIGHT: {
         id: "FEATHER_WEIGHT",
-        name: "Feather Weight",
+        name: "Feather",
         effect: "Jump Height +20%",
         description: "A discarded feather, light and airy.",
         spriteKey: "feather",
@@ -57,7 +57,7 @@ export const RELICS: Record<string, Relic> = {
     },
     SLAYER: {
         id: "SLAYER",
-        name: "Slayer",
+        name: "Skull of Slayer",
         effect: "Gain +2 coins for every enemy killed",
         description: "What's your Slayer level? My Slayer level is 99.",
         spriteKey: "slayer",

@@ -64,6 +64,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVelocityY(this.jumpVelocity * jumpMultiplier);
         this.scene.sound.play("jump", { volume: 0.5 });
 
+        // basic scaling animation based on scaling factor using phaser tween. should be a pulse effect and not repeat
+        this.scene.tweens.add({
+            targets: this,
+            scale: this.scale * 1.2,
+            duration: 100,
+            ease: "power2.inOut",
+            yoyo: true,
+            repeat: 0,
+        });
         // 2. Directly attempt row clear via TerrainManager
         const checkWorldX = this.x;
         // Check slightly below the player's bottom center
@@ -149,7 +158,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         if (newLives <= 0) {
             EventBus.emit("player-died");
-            // Optionally play death animation, disable input etc.
+            this.scene.sound.play("die");
             this.setActive(false); // Stop updates
             this.setVisible(false); // Hide
             this.body!.enable = false; // Disable physics

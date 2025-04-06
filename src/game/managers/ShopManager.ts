@@ -151,6 +151,7 @@ export class ShopManager {
                 canPurchase = true;
                 purchaseMessage = `Purchased Relic: ${relic.name}`;
                 notification = "Relic Purchased!";
+                this.scene.sound.play("buy");
                 this.applyRelicEffect(data.itemId); // Apply effect immediately
             } else {
                 purchaseMessage = "Not enough coins!";
@@ -181,6 +182,7 @@ export class ShopManager {
                 canPurchase = true;
                 purchaseMessage = `Purchased Consumable: ${consumable.name}`;
                 notification = "Consumable Purchased!";
+                this.scene.sound.play("buy");
             } else {
                 purchaseMessage = "Not enough coins!";
                 notification = "Not enough coins!";

@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../constants";
 import { EventBus } from "../EventBus";
+import Game from "../scenes/Game";
 
 export class Coin extends Phaser.Physics.Arcade.Image {
     constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -100,6 +101,17 @@ export class Coin extends Phaser.Physics.Arcade.Image {
         scene.registry.set("totalCoinsCollected", totalCoinsCollected);
 
         EventBus.emit("stats-changed");
+
+        // Trigger coin collection particles
+        const gameScene = scene as Game;
+        if (gameScene.particleManager) {
+            gameScene.particleManager.triggerParticles("coin", coin.x, coin.y, {
+                count: 10,
+                speed: 50,
+                lifespan: 400,
+                scale: 0.4,
+            });
+        }
 
         coinsGroup.killAndHide(coin);
         if (coin.body) {

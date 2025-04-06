@@ -56,7 +56,7 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
                             item={item}
                             itemTypeOverride="consumable"
                             size="md"
-                            background // Give items a background/border
+                            background={false}
                         />
                     </div>
                 );

@@ -140,7 +140,6 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         if (!this.active || !this.body) return;
         const body = this.body as Phaser.Physics.Arcade.Body;
 
-        this.scene.sound.play("hit", { volume: 0.6 });
         this.gameScene.tweens.add({
             targets: this,
             scaleX: 1.1,
@@ -222,6 +221,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                     }
                 } else if (target instanceof Spike) {
                     target.takeDamage(999);
+                    this.takeDamage(1);
                     console.log("Boulder landed on spike");
                 }
             }
@@ -283,8 +283,9 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         } else if (otherObject instanceof Spike) {
             // Destroy spikes
             otherObject.takeDamage(999); // Use takeDamage which handles destruction
-            // Optionally, boulder takes less/no damage from fragile spike
-            // this.takeDamage(selfDamage / 2); // Example: less damage
+
+            this.takeDamage(selfDamage);
+
             damaged = true; // Spike was "damaged" (destroyed)
             // this.playCollisionHitEffect();
         }
@@ -377,7 +378,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             this.body.enable = false;
         }
 
-        this.scene.sound.play("hit");
+        this.scene.sound.play("hit", { volume: 0.5 });
 
         if (this.gameScene.particleManager) {
             this.gameScene.particleManager.triggerParticles(

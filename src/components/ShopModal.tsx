@@ -188,102 +188,108 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             {/* Relics Section */}
-                            <div className={cn("p-4 my-2")}>
+                            <div className={cn("my-2")}>
                                 <h3
                                     className={cn(
-                                        "text-3xl mb-3 text-amber-300"
+                                        "text-3xl mb-2 text-amber-300 text-center"
                                     )}
                                 >
                                     Relics
                                 </h3>
-                                <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
-                                    {relics.length > 0 ? (
-                                        relics.map((relic) => {
-                                            const cost = getItemCost(relic);
-                                            const cannotAfford =
-                                                playerCoins < cost;
-                                            const isPurchased =
-                                                purchasedItemIds.has(relic.id);
-                                            return (
-                                                <ItemDisplay
-                                                    key={relic.id}
-                                                    item={relic}
-                                                    itemTypeOverride="relic"
-                                                    onPurchase={() =>
-                                                        handlePurchase(
-                                                            relic,
-                                                            "relic"
-                                                        )
-                                                    }
-                                                    background={false}
-                                                    showPrice={true}
-                                                    disabled={
-                                                        cannotAfford ||
-                                                        isPurchased
-                                                    }
-                                                    size="xxl" // Adjusted size
-                                                />
-                                            );
-                                        })
-                                    ) : (
-                                        <p className="text-sm opacity-80">
-                                            No relics available.
-                                        </p>
-                                    )}
+                                <div className="p-4 bg-[#c1a37e] rounded shadow-inner border border-[#a0704f]">
+                                    <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
+                                        {relics.length > 0 ? (
+                                            relics.map((relic) => {
+                                                const cost = getItemCost(relic);
+                                                const cannotAfford =
+                                                    playerCoins < cost;
+                                                const isPurchased =
+                                                    purchasedItemIds.has(
+                                                        relic.id
+                                                    );
+                                                return (
+                                                    <ItemDisplay
+                                                        key={relic.id}
+                                                        item={relic}
+                                                        itemTypeOverride="relic"
+                                                        onPurchase={() =>
+                                                            handlePurchase(
+                                                                relic,
+                                                                "relic"
+                                                            )
+                                                        }
+                                                        background={false}
+                                                        showPrice={true}
+                                                        disabled={
+                                                            cannotAfford ||
+                                                            isPurchased
+                                                        }
+                                                        size="xxl" // Adjusted size
+                                                    />
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-sm opacity-80">
+                                                No relics available.
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             {/* Consumables Section */}
-                            <div className={cn("p-4 my-2")}>
+                            <div className={cn("my-2")}>
                                 <h3
                                     className={cn(
-                                        "text-3xl mb-3 text-amber-300"
+                                        "text-3xl mb-2 text-amber-300 text-center"
                                     )}
                                 >
                                     Items
                                 </h3>
-                                <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
-                                    {consumables.length > 0 ? (
-                                        consumables.map((consumable) => {
-                                            const cost =
-                                                getItemCost(consumable);
-                                            const cannotAfford =
-                                                playerCoins < cost;
-                                            const isPurchased =
-                                                purchasedItemIds.has(
-                                                    consumable.id
+                                <div className="p-4 bg-[#c1a37e] rounded shadow-inner border border-[#a0704f]">
+                                    <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
+                                        {consumables.length > 0 ? (
+                                            consumables.map((consumable) => {
+                                                const cost =
+                                                    getItemCost(consumable);
+                                                const cannotAfford =
+                                                    playerCoins < cost;
+                                                const isPurchased =
+                                                    purchasedItemIds.has(
+                                                        consumable.id
+                                                    );
+                                                // TODO: Check if inventory is full (needs info from Game.ts)
+                                                const inventoryFull = false; // Placeholder
+                                                return (
+                                                    <ItemDisplay
+                                                        key={consumable.id}
+                                                        item={consumable}
+                                                        itemTypeOverride="consumable"
+                                                        onPurchase={() =>
+                                                            handlePurchase(
+                                                                consumable,
+                                                                "consumable"
+                                                            )
+                                                        }
+                                                        background={false}
+                                                        showPrice={true}
+                                                        disabled={
+                                                            cannotAfford ||
+                                                            isPurchased ||
+                                                            inventoryFull
+                                                        }
+                                                        size="xxl" // Adjusted size
+                                                    />
                                                 );
-                                            // TODO: Check if inventory is full (needs info from Game.ts)
-                                            const inventoryFull = false; // Placeholder
-                                            return (
-                                                <ItemDisplay
-                                                    key={consumable.id}
-                                                    item={consumable}
-                                                    itemTypeOverride="consumable"
-                                                    onPurchase={() =>
-                                                        handlePurchase(
-                                                            consumable,
-                                                            "consumable"
-                                                        )
-                                                    }
-                                                    background={false}
-                                                    showPrice={true}
-                                                    disabled={
-                                                        cannotAfford ||
-                                                        isPurchased ||
-                                                        inventoryFull
-                                                    }
-                                                    size="xxl" // Adjusted size
-                                                />
-                                            );
-                                        })
-                                    ) : (
-                                        <p className="text-sm opacity-80">
-                                            No consumables available.
-                                        </p>
-                                    )}
+                                            })
+                                        ) : (
+                                            <p className="text-sm opacity-80">
+                                                No consumables available.
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            <AlertDialogFooter className="flex flex-row justify-between items-center pt-0 sm:justify-between">
+                            <AlertDialogFooter className="flex flex-row justify-between items-center pt-2 sm:justify-between">
                                 {/* Basic button styling, might need custom CSS for exact pixel look */}
                                 <Button
                                     variant="secondary"

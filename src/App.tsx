@@ -107,14 +107,14 @@ function App() {
                                 className="w-16 mx-auto mb-4"
                                 style={{
                                     imageRendering: "pixelated",
-                                    filter: "drop-shadow(0 0 10px rgba(255, 170, 0, 0.3))",
+                                    filter: "drop-shadow(0 0 10px rgba(255, 255, 255, 0.3))",
                                 }}
                             />
                         </div>
                         <h1
                             className="text-8xl mb-4 text-white"
                             style={{
-                                textShadow: "0 0 50px rgba(255, 170, 0, 0.5)",
+                                textShadow: "0 0 50px rgba(254, 254, 254, 0.3)",
                             }}
                         >
                             Just Dig
