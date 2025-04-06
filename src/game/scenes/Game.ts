@@ -190,7 +190,7 @@ export default class Game extends Phaser.Scene {
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
-        this.registry.set("consumables", ["TNT"] as string[]);
+        this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
 

@@ -115,20 +115,11 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         if (this.gameScene.particleManager) {
             // Single, central explosion burst
             const textureKey = "sand_tile"; // Or your explosion particle key
-            console.log(
-                `TNT: Attempting particle trigger. Manager exists: ${!!this
-                    .gameScene.particleManager}, Key: "${textureKey}", Pos: (${
-                    this.x
-                }, ${this.y})`
-            );
             if (!this.gameScene.particleManager) {
                 console.error("TNT: ParticleManager is UNDEFINED here!");
             } else {
                 const emitterExists =
                     this.gameScene.particleManager["emitters"]?.has(textureKey); // Access private for debug
-                console.log(
-                    `TNT: Emitter for key "${textureKey}" exists in manager: ${emitterExists}`
-                );
             }
             this.gameScene.particleManager.triggerParticles(
                 textureKey, // Use the logged key

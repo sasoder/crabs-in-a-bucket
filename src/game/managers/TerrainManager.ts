@@ -279,32 +279,6 @@ export class TerrainManager {
                             alpha: 1, // Force full alpha
                         };
 
-                        // --- ADDED LOGGING ---
-                        console.log(
-                            `TerrainManager: Attempting particle trigger. Manager exists: ${!!this
-                                .particleManager}, Key: "${particleName}", Pos: (${particleX}, ${particleY})`
-                        );
-                        if (!this.particleManager) {
-                            console.error(
-                                "TerrainManager: ParticleManager is UNDEFINED here!"
-                            );
-                        } else {
-                            const emitterExists =
-                                this.particleManager["emitters"]?.has(
-                                    particleName
-                                ); // Access private for debug
-                            console.log(
-                                `TerrainManager: Emitter for key "${particleName}" exists in manager: ${emitterExists}`
-                            );
-                        }
-                        // --- END ADDED LOGGING ---
-
-                        // <<< NEW ROW CLEAR LOGGING >>>
-                        console.log(
-                            `ROW_CLEAR_TRIGGER: Tile ${i}, Type: ${particleName}, X: ${particleX}, Y: ${particleY}`
-                        );
-                        // <<< END NEW LOGGING >>>
-
                         this.particleManager.triggerParticles(
                             particleName,
                             particleX,
