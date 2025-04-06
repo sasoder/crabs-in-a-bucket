@@ -128,34 +128,69 @@ export class TerrainManager {
             `Generating initial platform at row Y=${this.initialPlatformRows}`
         );
         const platformWorldY = this.initialPlatformRows * TILE_SIZE;
-        this.generateRow(platformWorldY, true); // Force generate platform row
+
+        // First create all row colliders/visuals
+        this.generateRowOnly(platformWorldY, true); // Force generate platform row
 
         // Generate some rows below the platform to start
         const initialWorldDepthRows = 20;
         const startY = (this.initialPlatformRows + 1) * TILE_SIZE;
         const endY = startY + initialWorldDepthRows * TILE_SIZE;
 
-        console.log(`Generating initial chunk from Y=${startY} to Y=${endY}`);
+        console.log(
+            `Generating initial chunk colliders from Y=${startY} to Y=${endY}`
+        );
         for (let y = startY; y < endY; y += TILE_SIZE) {
-            this.generateRow(y);
+            this.generateRowOnly(y);
         }
+
+        // Then spawn entities on all the created rows
+        console.log(
+            `Spawning entities on initial chunk from Y=${startY} to Y=${endY}`
+        );
+        // Including platform row
+        this.spawnEntitiesOnRow(platformWorldY);
+        for (let y = startY; y < endY; y += TILE_SIZE) {
+            this.spawnEntitiesOnRow(y);
+        }
+
         this.generatedRowsMaxY = endY;
-        // --- REMOVED updateCollision call --- Collision is handled per-sprite
     }
 
     public update(cameraBottomY: number): void {
-        const generationThreshold = cameraBottomY + TILE_SIZE * 10; // Generate further ahead
+        // Calculate a threshold far enough below the camera to trigger a chunk generation
+        const generationThreshold = cameraBottomY + TILE_SIZE * 10;
 
         if (generationThreshold > this.generatedRowsMaxY) {
+            // Instead of generating row by row, generate a chunk of 20 rows at once
             const startY = this.generatedRowsMaxY;
-            const endY = generationThreshold;
+            const chunkSize = 20 * TILE_SIZE; // 20 rows per chunk
+            const endY = startY + chunkSize;
+
+            console.log(
+                `Generating chunk of 20 rows from Y=${startY} to Y=${endY}`
+            );
+
+            // First, generate ALL row colliders in the chunk
             for (let y = startY; y < endY; y += TILE_SIZE) {
-                // Only generate rows below the initial platform naturally
                 if (y >= (this.initialPlatformRows + 1) * TILE_SIZE) {
-                    this.generateRow(y);
+                    // Create the row collider and visual first
+                    this.generateRowOnly(y);
                 }
             }
+
+            // THEN, spawn entities on the rows (after ALL colliders exist)
+            for (let y = startY; y < endY; y += TILE_SIZE) {
+                if (y >= (this.initialPlatformRows + 1) * TILE_SIZE) {
+                    // Now populate the rows with entities
+                    this.spawnEntitiesOnRow(y);
+                }
+            }
+
             this.generatedRowsMaxY = endY;
+            console.log(
+                `Chunk generation complete. New generatedRowsMaxY=${this.generatedRowsMaxY}`
+            );
         }
     }
 
@@ -246,7 +281,20 @@ export class TerrainManager {
      * @param forceGenerate Skip checks, used for initial platform.
      */
     private generateRow(worldY: number, forceGenerate = false): void {
+        this.generateRowOnly(worldY, forceGenerate);
+        this.spawnEntitiesOnRow(worldY);
+    }
+
+    /**
+     * Generates just the row collider and visual without any entities.
+     * @param worldY The world Y coordinate of the top of the row to generate.
+     * @param forceGenerate Skip checks, used for initial platform.
+     */
+    private generateRowOnly(worldY: number, forceGenerate = false): void {
+        // Step 1: Validate row generation conditions
         const tileY = Math.floor(worldY / TILE_SIZE);
+
+        // Check if the row is already generated or out of bounds
         if (
             tileY < 0 ||
             tileY >= this.mapHeightTiles ||
@@ -260,11 +308,12 @@ export class TerrainManager {
             return;
         }
 
+        // Step 2: Create collider for physical interactions
         const colliderYOffset = TILE_SIZE * 0.9; // Position collider near the bottom of the tile space
         const colliderHeight = TILE_SIZE * 0.1; // Thin collider strip
 
         const collider = this.scene.physics.add.staticImage(
-            0, // Center X
+            0, // Center X (will expand to full width)
             worldY + colliderYOffset, // Positioned towards the bottom
             "" // No texture needed
         );
@@ -276,9 +325,8 @@ export class TerrainManager {
 
         this.rowColliderGroup.add(collider);
         this.rowColliders.set(tileY, collider);
-        // --- End Collider ---
 
-        // 2. Create Row Visual (TileSprite)
+        // Step 3: Create Row Visual (TileSprite)
         const visual = this.scene.add.tileSprite(
             this.mapWidthPixels / 2, // Center X
             worldY + TILE_SIZE / 2 - 2, // Center Y
@@ -286,19 +334,30 @@ export class TerrainManager {
             TILE_SIZE, // Full height
             "dirt_tile" // Use the dirt texture
         );
-        // Set a low depth value for the visual row to ensure it's drawn behind entities
-        visual.setDepth(0);
+        visual.setDepth(0); // Set a low depth value for the visual row
         this.rowVisualsGroup.add(visual);
         this.rowVisuals.set(tileY, visual);
+    }
 
-        // 3. Spawn Entities *ON* the newly generated row's surface
-        // Use the collider's Y position as the surface reference
-        const spawnSurfaceY = worldY + colliderYOffset - colliderHeight / 2; // Surface is top of collider
-        // Adjust spike spawn Y to place its origin at the top-center of the tile space
-        const spikeSpawnY = worldY;
+    /**
+     * Spawns entities on an existing row.
+     * @param worldY The world Y coordinate of the top of the row.
+     */
+    private spawnEntitiesOnRow(worldY: number): void {
+        const tileY = Math.floor(worldY / TILE_SIZE);
 
-        if (tileY <= this.initialPlatformRows) return; // Don't spawn on initial platform rows
+        // Check that the row exists
+        if (!this.rowColliders.has(tileY)) {
+            console.error(
+                `Tried to spawn entities on nonexistent row at Y=${worldY} (tileY=${tileY})`
+            );
+            return;
+        }
 
+        // Don't spawn entities on initial platform rows
+        if (tileY <= this.initialPlatformRows) return;
+
+        // Calculate spawn chances based on depth
         const depthInRows = tileY - (this.initialPlatformRows + 1); // Rows below platform
         const depthFactor =
             Math.max(0, depthInRows) * this.difficultyScaleFactor;
@@ -308,44 +367,67 @@ export class TerrainManager {
         const currentSpikeChance = this.spikeSpawnChanceBase + depthFactor;
         const currentCoinChance = this.coinSpawnChanceBase + depthFactor;
 
+        // Calculate enemy speed based on depth
         const currentEnemySpeed = Math.min(
             100, // Max speed cap
             this.baseEnemySpeed + depthInRows * this.enemySpeedDepthScale
         );
 
+        // Determine exact spawn surface Y coordinate
+        const colliderYOffset = TILE_SIZE * 0.9;
+        const colliderHeight = TILE_SIZE * 0.1;
+        const spawnSurfaceY = worldY + colliderYOffset - colliderHeight / 2; // Surface is top of collider
+        const spikeSpawnY = worldY; // Adjust spike spawn Y for top of row
+
+        // Log for debugging
+        if (depthInRows > 15) {
+            console.log(
+                `Spawning entities on row tileY=${tileY} (worldY=${worldY}) at depth ${depthInRows}`
+            );
+            console.log(
+                `Chances - Boulder: ${currentBoulderChance.toFixed(3)}, ` +
+                    `Enemy: ${currentEnemyChance.toFixed(3)}, ` +
+                    `Spike: ${currentSpikeChance.toFixed(3)}, ` +
+                    `Coin: ${currentCoinChance.toFixed(3)}`
+            );
+        }
+
+        // Iterate through each tile position in the row
         for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
             const spawnWorldX = tileX * TILE_SIZE + TILE_SIZE / 2;
 
-            // Check if space is occupied (crude check, could improve)
-            // This is a basic check, might need refinement if entities overlap badly
+            // Check for existing entities at this position
             let spaceOccupied = false;
-            // Need to check spikes group too now for occupancy
-            const checkRadius = TILE_SIZE * 0.8; // Check slightly smaller than tile
+            let occupyingEntityInfo = "None"; // For logging
 
-            // Reduce the occupancy check area to roughly the target tile
+            // Define a precise area for checking entity overlap
             const safeSpawnCheckArea = {
-                x: spawnWorldX - TILE_SIZE / 2, // Center on target X
-                y: spawnSurfaceY - TILE_SIZE / 2, // Center roughly on spawn surface Y
-                width: TILE_SIZE, // Check 1 tile width
-                height: TILE_SIZE * 1.1, // Check slightly more than 1 tile height vertically
+                x: spawnWorldX - TILE_SIZE / 2,
+                y: spawnSurfaceY - TILE_SIZE / 2,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
             };
 
+            // Check all entity groups to see if the space is already occupied
             const groupsToCheck = [
                 this.bouldersGroup,
                 this.enemiesGroup,
                 this.spikesGroup,
-                this.coinsGroup,
+                // Don't check coins group here, as they shouldn't block others
             ];
 
             for (const group of groupsToCheck) {
                 if (!group) continue;
+
                 group.getChildren().forEach((go) => {
+                    // Added check to prevent reading body of already potentially destroyed object
+                    if (!go || !go.body) return;
+
                     const body = go.body as
                         | Phaser.Physics.Arcade.Body
                         | Phaser.Physics.Arcade.StaticBody;
-                    if (!body) return;
 
-                    // Use rectangle overlap check instead of distance
+                    // Check if entity bounds overlap with our safe spawn area
                     const entityBounds = {
                         x: body.position.x,
                         y: body.position.y,
@@ -353,7 +435,6 @@ export class TerrainManager {
                         height: body.height,
                     };
 
-                    // Check if entity bounds overlap with our safe spawn area
                     if (
                         entityBounds.x <
                             safeSpawnCheckArea.x + safeSpawnCheckArea.width &&
@@ -365,77 +446,169 @@ export class TerrainManager {
                             safeSpawnCheckArea.y
                     ) {
                         spaceOccupied = true;
+                        // Get more info about the blocking entity
+                        const entityType =
+                            (go.constructor as any).name || "Unknown";
+                        occupyingEntityInfo = `${entityType} at (${body.position.x.toFixed(
+                            1
+                        )}, ${body.position.y.toFixed(1)})`;
                     }
                 });
-                if (spaceOccupied) break;
+
+                if (spaceOccupied) break; // Stop checking groups if occupied
             }
 
-            if (spaceOccupied) continue; // Skip spawning if something is already there
-
-            // --- REVISED SPAWN LOGIC ---
-            // Give each entity type an independent chance if space is free.
-            // If one spawns, mark the space as occupied for subsequent checks in this column.
+            // Skip this tile position if already occupied by Boulder, Enemy, or Spike
+            if (spaceOccupied) {
+                // Log only at deeper levels to avoid spam
+                if (depthInRows > 15) {
+                    console.log(
+                        `[Depth ${depthInRows}, TileX ${tileX}] Space occupied by ${occupyingEntityInfo}, skipping further checks.`
+                    );
+                }
+                continue; // Skip to next tile position
+            }
 
             // Check Boulder
-            if (Math.random() < currentBoulderChance) {
-                const boulder = new Boulder(
-                    this.scene,
-                    spawnWorldX,
-                    spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
-                );
-                boulder.setDepth(10);
-                this.bouldersGroup.add(boulder);
-                spaceOccupied = true; // Mark space as occupied for next checks
+            const tryBoulder = Math.random() < currentBoulderChance;
+            if (tryBoulder) {
+                // Log spawn attempt
+                if (depthInRows > 15)
+                    console.log(
+                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Boulder spawn...`
+                    );
+                try {
+                    const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
+                    const boulder = new Boulder(
+                        this.scene,
+                        spawnWorldX - TILE_SIZE / 2, // Center horizontally
+                        spawnY // Position slightly above the surface
+                    );
+
+                    if (boulder) {
+                        boulder.setDepth(10);
+                        this.bouldersGroup.add(boulder);
+                        // Log successful spawn
+                        if (depthInRows > 15)
+                            console.log(
+                                ` -> Spawned Boulder at (${(
+                                    spawnWorldX -
+                                    TILE_SIZE / 2
+                                ).toFixed(1)}, ${spawnY.toFixed(1)})`
+                            );
+                        // We continue immediately after spawning a boulder
+                    }
+                } catch (error) {
+                    console.error("Error spawning boulder:", error);
+                }
+                continue; // Move to next tile position after attempting boulder
             }
 
-            // Check Enemy (only if space isn't already taken by boulder)
-            if (!spaceOccupied && Math.random() < currentEnemyChance) {
-                const enemy = new Enemy(
-                    this.scene,
-                    spawnWorldX,
-                    spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
-                );
-                enemy.setDepth(10);
-                enemy.setSpeed(currentEnemySpeed);
-                this.enemiesGroup.add(enemy);
-                spaceOccupied = true; // Mark space as occupied for next checks
+            // Check Enemy - only if boulder didn't spawn
+            const tryEnemy = Math.random() < currentEnemyChance;
+            if (tryEnemy) {
+                // Log spawn attempt
+                if (depthInRows > 15)
+                    console.log(
+                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Enemy spawn...`
+                    );
+                try {
+                    const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
+                    const enemy = new Enemy(
+                        this.scene,
+                        spawnWorldX - TILE_SIZE / 2, // Center horizontally
+                        spawnY // Position slightly above the surface
+                    );
+
+                    if (enemy) {
+                        enemy.setDepth(10);
+                        enemy.setSpeed(currentEnemySpeed);
+                        this.enemiesGroup.add(enemy);
+                        // Log successful spawn
+                        if (depthInRows > 15)
+                            console.log(
+                                ` -> Spawned Enemy at (${(
+                                    spawnWorldX -
+                                    TILE_SIZE / 2
+                                ).toFixed(1)}, ${spawnY.toFixed(1)})`
+                            );
+                    }
+                } catch (error) {
+                    console.error("Error spawning enemy:", error);
+                }
+                continue; // Move to next tile position after attempting enemy
             }
 
-            // Check Spike (only if space isn't already taken by boulder or enemy)
-            if (!spaceOccupied && Math.random() < currentSpikeChance) {
-                if (this.spikesGroup) {
+            // Check Spike - only if boulder/enemy didn't spawn
+            const trySpike = Math.random() < currentSpikeChance;
+            if (trySpike && this.spikesGroup) {
+                // Log spawn attempt
+                if (depthInRows > 15)
+                    console.log(
+                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Spike spawn...`
+                    );
+                try {
                     const spike = new Spike(
                         this.scene,
-                        spawnWorldX - TILE_SIZE / 2, // Adjust X back because origin is center now
-                        spikeSpawnY + 10 // Y is the top of the row
+                        spawnWorldX - TILE_SIZE / 2, // Adjust X because origin is center
+                        spikeSpawnY + 10 // Y is the top of the row + offset
                     );
-                    spike.setDepth(10);
-                    this.spikesGroup.add(spike);
-                    spaceOccupied = true; // Mark space as occupied for next checks
+
+                    if (spike) {
+                        spike.setDepth(10);
+                        this.spikesGroup.add(spike);
+                        // Log successful spawn
+                        if (depthInRows > 15)
+                            console.log(
+                                ` -> Spawned Spike at (${(
+                                    spawnWorldX -
+                                    TILE_SIZE / 2
+                                ).toFixed(1)}, ${(spikeSpawnY + 10).toFixed(
+                                    1
+                                )})`
+                            );
+                    }
+                } catch (error) {
+                    console.error("Error spawning spike:", error);
                 }
+                continue; // Move to next tile position after attempting spike
             }
 
-            // Check Coin (only if space isn't taken by others)
-            // Coins typically don't need to occupy space afterwards unless desired for balance.
-            if (!spaceOccupied && Math.random() < currentCoinChance) {
-                Coin.spawn(
-                    // Assuming Coin.spawn handles adding to the group
-                    this.scene,
-                    this.coinsGroup as Phaser.Physics.Arcade.Group,
-                    spawnWorldX,
-                    spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
-                );
-                if (this.coinsGroup) {
-                    this.coinsGroup.setDepth(10); // Ensure coins are visible
+            // Check Coin - only if boulder/enemy/spike didn't spawn
+            // NOTE: Coins are checked last and DON'T occupy space for subsequent checks within this loop
+            const tryCoin = Math.random() < currentCoinChance;
+            if (tryCoin && this.coinsGroup) {
+                // Log spawn attempt
+                if (depthInRows > 15)
+                    console.log(
+                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Coin spawn...`
+                    );
+                try {
+                    const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
+                    Coin.spawn(
+                        this.scene,
+                        this.coinsGroup,
+                        spawnWorldX - TILE_SIZE / 2, // Center horizontally
+                        spawnY // Position slightly above the surface
+                    );
+                    // Log successful spawn
+                    if (depthInRows > 15)
+                        console.log(
+                            ` -> Spawned Coin at (${(
+                                spawnWorldX -
+                                TILE_SIZE / 2
+                            ).toFixed(1)}, ${spawnY.toFixed(1)})`
+                        );
+
+                    // Ensure coins have proper depth
+                    this.coinsGroup.setDepth(10);
+                } catch (error) {
+                    console.error("Error spawning coin:", error);
                 }
-                // spaceOccupied = true; // Optional: uncomment if coins should prevent other spawns in rare cases
+                // No continue here, allow checking next tile
             }
-            // --- END REVISED SPAWN LOGIC ---
         }
     }
-    // --- END REVISED ---
-
-    // --- REMOVED updateCollision ---
 
     // --- REVISED handleCreateExplosion --- Works on rows now
     public handleCreateExplosion(data: {

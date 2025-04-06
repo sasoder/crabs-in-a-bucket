@@ -15,7 +15,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Enemy Bonk",
         description: "Your can jump on enemies to damage them.",
         spriteKey: "steel_boots",
-        cost: 25,
+        cost: 20,
         allowDuplicates: false,
     },
     DRILL: {
@@ -24,7 +24,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Dig Depth +1",
         description: "Your dig destroys blocks one layer deeper than normal.",
         spriteKey: "drill",
-        cost: 25,
+        cost: 20,
         allowDuplicates: true,
     },
     FEATHER_WEIGHT: {
@@ -33,7 +33,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Jump Height +10%",
         description: "Your jump is higher than normal.",
         spriteKey: "feather",
-        cost: 10,
+        cost: 5,
         allowDuplicates: true,
     },
     LIGHTNING: {
@@ -42,7 +42,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Move Speed +10%",
         description: "You move faster than normal.",
         spriteKey: "lightning",
-        cost: 10,
+        cost: 5,
         allowDuplicates: true,
     },
     SLAYER: {
@@ -51,7 +51,7 @@ export const RELICS: Record<string, Relic> = {
         effect: "Enemy Kill reward +2",
         description: "Gain +2 coins for every enemy killed.",
         spriteKey: "slayer",
-        cost: 15,
+        cost: 10,
         allowDuplicates: true,
     },
 };
