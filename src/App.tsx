@@ -115,7 +115,7 @@ function App() {
                         <div className="flex flex-row items-center">
                             <img
                                 src="assets/entities/enemy.png"
-                                alt="Just Dig Logo"
+                                alt="Crabs in a Bucket Logo"
                                 className="w-16 mx-auto mb-4"
                                 style={{
                                     imageRendering: "pixelated",
@@ -130,7 +130,7 @@ function App() {
                                     "0 0 50px rgba(254, 254, 254, 0.25)",
                             }}
                         >
-                            Just Dig
+                            Crabs in a Bucket
                         </h1>
                         <div className="mt-auto">
                             <Button
@@ -141,7 +141,7 @@ function App() {
                                 )}
                                 style={buttonStyle}
                             >
-                                Well don't mind if I do
+                                Begin
                             </Button>
                         </div>
                     </div>
@@ -312,7 +312,7 @@ function App() {
                                 )}
                                 style={buttonStyle}
                             >
-                                Dig
+                                I'm ready
                             </Button>
                         </div>
                     </div>

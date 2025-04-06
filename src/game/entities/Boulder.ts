@@ -85,7 +85,8 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         this.previousVelocityY = body.velocity.y;
 
         if (Math.abs(body.velocity.x) > 5) {
-            const rotationSpeed = -body.velocity.x * 0.008;
+            // Fix rotation direction - positive velocity should result in clockwise rotation
+            const rotationSpeed = body.velocity.x * 0.002;
             this.rotation += rotationSpeed;
         } else {
             this.setAngularVelocity(body.angularVelocity * 0.9);

@@ -46,8 +46,8 @@ export class TerrainManager {
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
-    private boulderSpawnChanceBase = 0.02;
-    private enemySpawnChanceBase = 0.004;
+    private boulderSpawnChanceBase = 0.022;
+    private enemySpawnChanceBase = 0.0035;
     private spikeSpawnChanceBase = 0.03; // Add spike spawn chance
     private coinSpawnChanceBase = 0.07;
     private difficultyScaleFactor = 0.008;
