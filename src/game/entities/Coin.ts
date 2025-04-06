@@ -61,7 +61,6 @@ export class Coin extends Phaser.Physics.Arcade.Image {
                 const body = coin.body as Phaser.Physics.Arcade.Body | null;
                 if (body) {
                     body.enable = true;
-                    body.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.8);
                     const boostX = Phaser.Math.Between(-100, 100);
                     const boostY = Phaser.Math.Between(-100, -40);
                     body.setVelocity(boostX, boostY);
