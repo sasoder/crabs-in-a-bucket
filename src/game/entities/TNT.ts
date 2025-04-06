@@ -114,7 +114,7 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         // Explosion effect with particles if available
         if (this.gameScene.particleManager) {
             this.gameScene.particleManager.triggerParticles(
-                "dirt_tile",
+                "sand_tile",
                 this.x,
                 this.y,
                 { count: 250, speed: 100 }

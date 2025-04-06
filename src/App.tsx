@@ -20,10 +20,22 @@ interface PlayerStats {
     consumables: string[];
 }
 
+// Define the game state type
+type GameState = "not-started" | "crab-intro" | "lore" | "controls" | "playing";
+
+// Add CSS for consistent button position
+const buttonStyle = {
+    position: "fixed",
+    bottom: "calc(50vh - 150px)",
+    left: "50%",
+    transform: "translateX(-50%)",
+} as const;
+
 function App() {
     // References to the PhaserGame component (game and scene are exposed)
     const phaserRef = useRef<IRefPhaserGame | null>(null);
-    const [gameStarted, setGameStarted] = useState(false);
+    // Replace gameStarted with gameState for more detailed control
+    const [gameState, setGameState] = useState<GameState>("not-started");
     const [stats, setStats] = useState<PlayerStats>({
         lives: 3,
         coins: 0,
@@ -38,8 +50,8 @@ function App() {
     const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
 
     useEffect(() => {
-        // Only setup game listeners if game has started
-        if (gameStarted) {
+        // Only setup game listeners if game has started playing
+        if (gameState === "playing") {
             const updateStats = (newStats: Partial<PlayerStats>) => {
                 setStats((prev) => ({ ...prev, ...newStats }));
             };
@@ -66,11 +78,16 @@ function App() {
             };
         }
         // No effect or cleanup needed if game hasn't started
-    }, [gameStarted]);
+    }, [gameState]);
 
     const startGame = () => {
-        setGameStarted(true);
-        // Emit immediately when game is started via button click
+        // Update to set the crab intro state instead of starting game
+        setGameState("crab-intro");
+    };
+
+    const startActualGame = () => {
+        setGameState("playing");
+        // Emit when actual gameplay starts
         EventBus.emit("start-game");
     };
 
@@ -89,15 +106,11 @@ function App() {
         setCanMoveSprite(scene.scene.key === "MainMenu");
     };
 
-    return (
-        // Wrap the relevant parts (HUD, Shop) in TooltipProvider
-        <TooltipProvider>
-            <div
-                id="app"
-                className="h-screen w-screen bg-[#87ceeb]/20 flex justify-center items-center"
-            >
-                {!gameStarted ? (
-                    // Show Start Button if game hasn't started
+    // Render the appropriate content based on game state
+    const renderContent = () => {
+        switch (gameState) {
+            case "not-started":
+                return (
                     <div className="text-center flex flex-col items-center">
                         <div className="flex flex-row items-center">
                             <img
@@ -119,18 +132,149 @@ function App() {
                         >
                             Just Dig
                         </h1>
-                        <Button
-                            variant="secondary"
-                            onClick={startGame}
-                            className={cn(
-                                "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
-                            )}
-                        >
-                            Well don't mind if I do
-                        </Button>
+                        <div className="mt-auto">
+                            <Button
+                                variant="secondary"
+                                onClick={startGame}
+                                className={cn(
+                                    "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
+                                )}
+                                style={buttonStyle}
+                            >
+                                Well don't mind if I do
+                            </Button>
+                        </div>
                     </div>
-                ) : (
-                    // Add a relative container around the game and its UI
+                );
+
+            case "crab-intro":
+                return (
+                    <div className="text-center flex flex-col items-center justify-center max-w-lg">
+                        <div className="flex justify-center mb-6">
+                            <img
+                                src="assets/entities/enemy.png"
+                                alt="Crab"
+                                className="w-20 mx-auto"
+                                style={{
+                                    imageRendering: "pixelated",
+                                    filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                }}
+                            />
+                        </div>
+                        <p
+                            className="text-2xl text-white mb-8"
+                            style={{
+                                textShadow: "0 0 10px rgba(255, 255, 255, 0.3)",
+                            }}
+                        >
+                            The crabs tell of treasures buried in the shifting
+                            sands...
+                        </p>
+                        <div className="mt-auto">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setGameState("lore")}
+                                className={cn(
+                                    "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
+                                )}
+                                style={buttonStyle}
+                            >
+                                Tell me more...
+                            </Button>
+                        </div>
+                    </div>
+                );
+
+            case "lore":
+                return (
+                    <div className="text-center flex flex-col items-center justify-center max-w-lg">
+                        <p
+                            className="text-2xl text-white mb-8"
+                            style={{
+                                textShadow: "0 0 10px rgba(255, 255, 255, 0.3)",
+                            }}
+                        >
+                            Ancient relics lie in the depths below. Only the
+                            brave who dig deep enough can claim what time has
+                            forgotten.
+                        </p>
+                        <div className="mt-auto">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setGameState("controls")}
+                                className={cn(
+                                    "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
+                                )}
+                                style={buttonStyle}
+                            >
+                                I'm brave!!!
+                            </Button>
+                        </div>
+                    </div>
+                );
+
+            case "controls":
+                return (
+                    <div className="text-center flex flex-col items-center justify-center">
+                        <h2
+                            className="text-2xl text-white mb-6"
+                            style={{
+                                textShadow: "0 0 10px rgba(255, 255, 255, 0.3)",
+                            }}
+                        >
+                            How to play
+                        </h2>
+                        <div className="flex flex-wrap justify-center gap-10 mb-10">
+                            <div className="flex flex-col items-center">
+                                <div className="flex gap-2">
+                                    <img
+                                        src="assets/ui/left.png"
+                                        alt="Left"
+                                        className="w-12 h-12"
+                                        style={{ imageRendering: "pixelated" }}
+                                    />
+                                    <img
+                                        src="assets/ui/up.png"
+                                        alt="Up"
+                                        className="w-12 h-12"
+                                        style={{ imageRendering: "pixelated" }}
+                                    />
+                                    <img
+                                        src="assets/ui/right.png"
+                                        alt="Right"
+                                        className="w-12 h-12"
+                                        style={{ imageRendering: "pixelated" }}
+                                    />
+                                </div>
+                                <p className="text-white mt-3">Move and dig</p>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <img
+                                    src="assets/ui/spacebar.png"
+                                    alt="Spacebar"
+                                    className="h-12"
+                                    style={{ imageRendering: "pixelated" }}
+                                />
+                                <p className="text-white mt-3">Use items</p>
+                            </div>
+                        </div>
+                        <div className="mt-auto">
+                            <Button
+                                variant="secondary"
+                                onClick={startActualGame}
+                                className={cn(
+                                    "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
+                                )}
+                                style={buttonStyle}
+                            >
+                                Dig
+                            </Button>
+                        </div>
+                    </div>
+                );
+
+            case "playing":
+                return (
                     <div className="relative">
                         <PhaserGame
                             ref={phaserRef}
@@ -151,7 +295,18 @@ function App() {
                             />
                         </div>
                     </div>
-                )}
+                );
+        }
+    };
+
+    return (
+        // Wrap the relevant parts (HUD, Shop) in TooltipProvider
+        <TooltipProvider>
+            <div
+                id="app"
+                className="h-screen w-screen bg-[#87ceeb]/20 flex justify-center items-center"
+            >
+                {renderContent()}
                 <ShopModal
                     isOpen={isShopOpen}
                     onClose={closeShop}

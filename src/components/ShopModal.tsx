@@ -89,6 +89,20 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         setCanAffordReroll(playerCoins >= rerollCost);
     }, [playerCoins, rerollCost]);
 
+    // Add keyboard listener for Enter key
+    useEffect(() => {
+        const handleKeyPress = (event: KeyboardEvent) => {
+            if (isOpen && event.key === "Enter") {
+                handleClose();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyPress);
+        return () => {
+            window.removeEventListener("keydown", handleKeyPress);
+        };
+    }, [isOpen]);
+
     const handleClose = () => {
         EventBus.emit("close-shop"); // Tell Phaser the shop is closing
         onClose(); // Update React state in App.tsx

@@ -241,7 +241,7 @@ export class TerrainManager {
                 const particleY = targetRowWorldY + TILE_SIZE / 2;
                 for (let i = 0; i < this.mapWidthTiles; i++) {
                     this.particleManager.triggerParticles(
-                        "dirt_tile",
+                        "sand_tile",
                         i * TILE_SIZE + TILE_SIZE / 2,
                         particleY,
                         { count: 3 }
@@ -311,13 +311,13 @@ export class TerrainManager {
         const rowImages: Phaser.GameObjects.Image[] = []; // Array to hold images for this row
         for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
             // Determine texture for this specific tile
-            let textureKey = "dirt_tile";
+            let textureKey = "sand_tile"; // Changed back to sand_tile
             // Force dirt for the initial platform row
             if (!forceGenerate) {
                 const randomChance = Math.random();
                 if (randomChance < this.specialTileChance) {
                     textureKey =
-                        Math.random() < 0.5 ? "gold_tile" : "stone_tile";
+                        Math.random() < 0.5 ? "dirt_tile" : "stone_tile";
                 }
             }
 

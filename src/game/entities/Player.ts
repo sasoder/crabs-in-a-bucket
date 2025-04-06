@@ -79,7 +79,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         let checkWorldY = this.body!.bottom + 1; // Check just below feet
 
         this.gameScene.particleManager.triggerParticles(
-            "dirt_tile",
+            "sand_tile",
             this.x,
             this.y + this.height / 2,
             { count: 3 }
@@ -111,7 +111,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                         // Optional: Add visual/sound for extra dig
                         // this.gameScene.sound.play('drill_sound', { volume: 0.3 });
                         this.gameScene.particleManager.triggerParticles(
-                            "dirt_tile",
+                            "sand_tile",
                             this.x,
                             nextRowWorldY + TILE_SIZE / 2, // Particles at the deeper row
                             { count: 2 } // Fewer particles for extra digs?

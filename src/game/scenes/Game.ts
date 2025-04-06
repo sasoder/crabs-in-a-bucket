@@ -8,7 +8,6 @@ import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
 import { Spike } from "../entities/Spike";
 import { Coin } from "../entities/Coin";
-import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
 import { EnemyManager } from "../managers/EnemyManager";
 import { CONSUMABLES } from "../data/Consumables";
@@ -28,7 +27,6 @@ export default class Game extends Phaser.Scene {
     private totalCoinsCollected = 0;
     private initialPlayerY = 0;
 
-    private textureManager!: TextureManager;
     public particleManager!: ParticleManager;
     public terrainManager!: TerrainManager;
     private shopManager!: ShopManager;
@@ -43,7 +41,7 @@ export default class Game extends Phaser.Scene {
     private backgroundGradient!: Phaser.GameObjects.Graphics;
     private surfaceColor = 0x87ceeb; // Light blue sky at surface
     private deepColor = 0x0a1a2a; // Dark blue/black for deep underground
-    private maxDarkeningDepth = 100; // Depth at which max darkness is reached
+    private maxDarkeningDepth = 75; // Depth at which max darkness is reached
 
     private heartStoneTimer?: Phaser.Time.TimerEvent; // Timer for Heart Stone relic
 
@@ -59,8 +57,7 @@ export default class Game extends Phaser.Scene {
     }
 
     preload() {
-        this.textureManager = new TextureManager(this);
-        this.textureManager.generateAllTextures();
+        // Remove TextureManager initialization and usage
     }
 
     create() {
@@ -121,7 +118,7 @@ export default class Game extends Phaser.Scene {
         this.coinsGroup.setDepth(10);
 
         this.particleManager = new ParticleManager(this);
-        this.particleManager.initializeEmitters(["dirt_tile", "enemy", "coin"]);
+        this.particleManager.initializeEmitters(["sand_tile", "enemy", "coin"]);
 
         this.terrainManager = new TerrainManager(
             this,
@@ -158,7 +155,11 @@ export default class Game extends Phaser.Scene {
 
         const backgroundSound = this.sound.add("bg"); // here "true" means to loop
 
-        backgroundSound.play({ volume: 1, loop: true });
+        // Only play background music if it's not already playing
+        if (!this.sound.get("bg") || !this.sound.get("bg").isPlaying) {
+            backgroundSound.play({ volume: 1, loop: true });
+        }
+
         // Create TNT group
         this.tntGroup = this.physics.add.group({
             classType: TNT,
@@ -181,11 +182,7 @@ export default class Game extends Phaser.Scene {
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
-        this.registry.set("consumables", [
-            "HEART_ROOT",
-            "GEODE",
-            "TNT",
-        ] as string[]);
+        this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
 
@@ -596,7 +593,7 @@ export default class Game extends Phaser.Scene {
                 surfaceColor,
                 deepColor,
                 100,
-                depth
+                darknessFactor * 100 // Use the capped darknessFactor percentage
             );
 
         const colorValue = Phaser.Display.Color.GetColor(
@@ -843,7 +840,6 @@ export default class Game extends Phaser.Scene {
 
         this.cursors = undefined;
         this.keySpace = undefined;
-        this.textureManager = undefined!;
         this.particleManager = undefined!;
         this.terrainManager = undefined!;
         this.shopManager = undefined!;
@@ -979,6 +975,7 @@ export default class Game extends Phaser.Scene {
             return;
         }
         let usedSuccessfully = false;
+        this.sound.play("tick");
 
         // --- Apply Consumable Effects ---
         switch (consumableIdToUse) {
