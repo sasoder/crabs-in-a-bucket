@@ -18,8 +18,6 @@ export class ParticleManager {
     }
 
     public initializeEmitters(textureKeys: string[]): void {
-        console.log("Initializing particle system for textures:", textureKeys);
-
         // Create a simple square particle texture if it doesn't exist
         if (!this.scene.textures.exists("particle")) {
             const graphics = this.scene.make.graphics({ x: 0, y: 0 });
@@ -27,7 +25,6 @@ export class ParticleManager {
             graphics.fillRect(0, 0, 8, 8);
             graphics.generateTexture("particle", 8, 8);
             graphics.destroy();
-            console.log("Created generic particle texture");
         }
 
         // Log the available textures for debugging
@@ -35,7 +32,6 @@ export class ParticleManager {
         this.scene.textures.each((texture: Phaser.Textures.Texture) => {
             availableTextures.push(texture.key);
         }, this);
-        console.log("Available textures:", availableTextures);
     }
 
     public triggerParticles(
@@ -44,10 +40,6 @@ export class ParticleManager {
         worldY: number,
         options?: ParticleOptions
     ): void {
-        console.log(
-            `Creating particles for ${textureKey} at (${worldX}, ${worldY})`
-        );
-
         // Center position
         const centerX = worldX + this.TILE_SIZE / 2;
         const centerY = worldY + this.TILE_SIZE / 2;
@@ -97,16 +89,6 @@ export class ParticleManager {
                 },
             });
         }
-
-        console.log(
-            `Created ${count} particles at (${centerX}, ${centerY}) using texture ${textureKey}`
-        );
-    }
-
-    public destroyEmitters(): void {
-        console.log(
-            "Particle system cleanup - nothing to do for manual particles"
-        );
     }
 }
 

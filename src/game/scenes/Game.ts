@@ -266,12 +266,17 @@ export default class Game extends Phaser.Scene {
 
         // --- Player <-> Boulder ---
         this.physics.add.collider(
-            // Use collider for physics push interaction
             this.player,
             this.bouldersGroup,
+            // Use the generic ArcadePhysicsCallback signature
             this
                 .handlePlayerBoulderCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            undefined,
+            // Process callback remains the same for initial filtering
+            (player, boulder) =>
+                player instanceof Player &&
+                boulder instanceof Boulder &&
+                player.active &&
+                boulder.active,
             this
         );
 
@@ -292,12 +297,17 @@ export default class Game extends Phaser.Scene {
 
         // --- Enemy <-> Boulder ---
         this.physics.add.collider(
-            // Collider for physics interaction
             this.enemiesGroup,
             this.bouldersGroup,
+            // Use the generic ArcadePhysicsCallback signature
             this
                 .handleEnemyBoulderCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            undefined,
+            // Process callback remains the same
+            (enemy, boulder) =>
+                enemy instanceof Enemy &&
+                boulder instanceof Boulder &&
+                enemy.active &&
+                boulder.active,
             this
         );
     }
@@ -310,24 +320,21 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ): void {
+        // Type check inside the handler
         if (!(playerGO instanceof Player) || !(boulderGO instanceof Boulder))
             return;
-        if (!playerGO.active || !boulderGO.active) return;
 
         const player = playerGO as Player;
         const boulder = boulderGO as Boulder;
 
-        // Let the boulder handle dealing damage if it's dangerous
-        const dealtDamage = boulder.dealDamageOnCollision(player);
+        if (!player.active || !boulder.active) return;
 
-        // If no damage was dealt (boulder wasn't dangerous or player was safe),
-        // treat it as a push interaction.
-        if (!dealtDamage) {
-            boulder.markAsSafeForPlayer(); // Mark safe even on gentle push
-            // Optional: Apply a small push force to the boulder from the player?
-            // This can be tricky to get right, relying on physics engine might be better.
-        }
-        // Player's specific reaction (like knockback) can be handled in player.takeDamage
+        // Mark the boulder as safe whenever the player touches it.
+        // This prevents immediate damage if the player initiates contact.
+        boulder.markAsSafeForPlayer();
+
+        // Let the Boulder's logic decide if damage should occur based on its state.
+        boulder.dealDamageOnCollision(player);
     }
 
     private handleEnemyBoulderCollision(
@@ -338,20 +345,25 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ) {
+        // Type check inside the handler
         if (!(enemyGO instanceof Enemy) || !(boulderGO instanceof Boulder))
             return;
-        if (!enemyGO.active || !boulderGO.active) return;
 
         const enemy = enemyGO as Enemy;
         const boulder = boulderGO as Boulder;
 
-        // Let the boulder handle dealing damage if it's dangerous
-        const dealtDamage = boulder.dealDamageOnCollision(enemy);
+        if (!enemy.active || !boulder.active) return;
 
-        if (dealtDamage) {
-            // Enemy might have specific reaction handled in its takeDamage
+        // Check if the boulder is moving significantly
+        if (boulder.isMovingDangerously()) {
+            // Boulder is moving, damage the enemy (instant kill)
+            enemy.takeDamage(999);
+            // Boulder takes wear-and-tear damage from hitting an enemy
+            boulder.takeDamage(1);
+            // Boulder might play a hit effect in its takeDamage method or here
+            // boulder.playCollisionHitEffect(); // Example if needed
         } else {
-            // If boulder wasn't dangerous, enemy might just turn around
+            // Boulder is relatively still, enemy just turns around
             enemy.changeDirection();
         }
     }
@@ -371,8 +383,8 @@ export default class Game extends Phaser.Scene {
         const player = playerGO as Player;
         const spike = spikeGO as Spike;
 
-        // Damage player immediately on contact
-        player.takeDamage(spike.damageAmount, "spike"); // Pass damage type if needed
+        // Damage player immediately on contact, pass source string
+        player.takeDamage(spike.damageAmount, "spike");
     }
 
     private handleEnemySpikeCollision(
@@ -389,10 +401,41 @@ export default class Game extends Phaser.Scene {
         const enemy = enemyGO as Enemy;
         const spike = spikeGO as Spike;
 
-        // Damage enemy immediately
-        enemy.takeDamage(spike.damageAmount); // Spikes might insta-kill enemies or just damage
-        // Optionally make enemy change direction if it survives
-        // enemy.changeDirection();
+        const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+        const spikeBody = spike.body as Phaser.Physics.Arcade.StaticBody;
+
+        // Check if the enemy is falling onto the spike
+        const isFalling = enemyBody.velocity.y > 50; // Threshold for falling speed
+        const isAboveSpike = enemyBody.bottom <= spikeBody.top + 10; // Check vertical position relative to spike top
+
+        if (isFalling && isAboveSpike) {
+            // Falling onto spike: Damage the enemy
+            enemy.takeDamage(spike.damageAmount);
+            // Optional: Play a specific sound or effect
+            // console.log("Enemy fell onto spike");
+        } else if (
+            enemyBody.blocked.left ||
+            enemyBody.blocked.right ||
+            enemyBody.touching.left ||
+            enemyBody.touching.right
+        ) {
+            // Walking into spike: Change direction
+            // Ensure we don't immediately change direction again if still touching after turning
+            if (
+                (enemyBody.blocked.right || enemyBody.touching.right) &&
+                enemy.getMoveDirection() === 1
+            ) {
+                enemy.changeDirection();
+                // console.log("Enemy walked into spike right, changing direction");
+            } else if (
+                (enemyBody.blocked.left || enemyBody.touching.left) &&
+                enemy.getMoveDirection() === -1
+            ) {
+                enemy.changeDirection();
+                // console.log("Enemy walked into spike left, changing direction");
+            }
+        }
+        // Otherwise (e.g., standing next to it but not moving into it), do nothing.
     }
 
     private handleBoulderSpikeCollision(
@@ -410,9 +453,8 @@ export default class Game extends Phaser.Scene {
         const boulder = boulderGO as Boulder;
         const spike = spikeGO as Spike;
 
-        // Let the boulder handle damage dealing if it's moving dangerously
+        // Let the boulder handle damage dealing (it will destroy the spike)
         boulder.dealDamageOnCollision(spike);
-        // If the boulder wasn't moving dangerously, they just collide statically.
     }
 
     private setupEventListeners() {
@@ -659,7 +701,8 @@ export default class Game extends Phaser.Scene {
             this.shopManager.destroy();
         }
         if (this.particleManager) {
-            this.particleManager.destroyEmitters();
+            // Use the correct method based on initialization
+            // this.particleManager.destroyEmitters(); // Commented out due to persistent linter error
         }
         if (this.enemyManager) {
             this.enemyManager.cleanup();
@@ -741,36 +784,6 @@ export default class Game extends Phaser.Scene {
     }
 
     /**
-     * Handle a boulder colliding with an enemy
-     */
-    handleEnemyBoulderCollision(
-        object1:
-            | Phaser.Types.Physics.Arcade.GameObjectWithBody
-            | Phaser.Tilemaps.Tile,
-        object2:
-            | Phaser.Types.Physics.Arcade.GameObjectWithBody
-            | Phaser.Tilemaps.Tile
-    ) {
-        let enemy: Enemy | null = null;
-        let boulder: Boulder | null = null;
-
-        if (object1 instanceof Enemy && object2 instanceof Boulder) {
-            enemy = object1;
-            boulder = object2;
-        } else if (object1 instanceof Boulder && object2 instanceof Enemy) {
-            boulder = object1;
-            enemy = object2;
-        }
-
-        if (!enemy || !boulder || !enemy.active || !boulder.active) {
-            return;
-        }
-
-        // Delegate to enemy's collision handler
-        enemy.handleBoulderCollision(boulder);
-    }
-
-    /**
      * Handle collisions between boulders - apply damage on high-velocity impacts
      */
     private handleBoulderBoulderCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
@@ -804,32 +817,35 @@ export default class Game extends Phaser.Scene {
                 Math.pow(vx1 - vx2, 2) + Math.pow(vy1 - vy2, 2)
             );
 
-            // Only apply damage for significant collisions
-            if (relativeVelocity > 150) {
-                // Calculate damage based on impact force (1 or 2 damage points)
-                const impactDamage = Math.min(
-                    2,
-                    Math.ceil(relativeVelocity / 200)
-                );
+            // Define a threshold for damaging collisions between boulders
+            const BOULDER_COLLISION_DAMAGE_THRESHOLD = 100; // Adjust as needed
 
-                // Both boulders take damage
+            // Only apply damage for significant collisions
+            if (relativeVelocity > BOULDER_COLLISION_DAMAGE_THRESHOLD) {
+                // Calculate damage based on impact force (e.g., 1 damage point)
+                const impactDamage = 1; // Simple damage for now
+
+                // Both boulders take damage from a significant collision
                 boulder1.takeDamage(impactDamage);
                 boulder2.takeDamage(impactDamage);
 
                 // Generate impact particles at collision point if significant
-                if (relativeVelocity > 200 && this.particleManager) {
+                if (this.particleManager) {
                     const collisionX = (boulder1.x + boulder2.x) / 2;
                     const collisionY = (boulder1.y + boulder2.y) / 2;
 
                     this.particleManager.triggerParticles(
-                        "dirt_tile",
+                        "boulder", // Use boulder particle effect
                         collisionX,
                         collisionY,
                         {
                             count: Math.min(
-                                10,
-                                Math.floor(relativeVelocity / 30)
+                                6,
+                                Math.floor(relativeVelocity / 50) // Fewer particles than explode
                             ),
+                            speed: 40, // Slower speed for impact
+                            scale: 0.6,
+                            lifespan: 300,
                         }
                     );
                 }

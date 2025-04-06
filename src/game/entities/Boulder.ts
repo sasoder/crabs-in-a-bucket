@@ -10,7 +10,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     protected gameScene: Game;
     private health = 3;
     private damageAmount = 1;
-    private safeForPlayer = false;
+    public safeForPlayer = false;
     private safeDuration = 300;
     private safeTimer?: Phaser.Time.TimerEvent;
 
@@ -18,8 +18,8 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     private lastImpactTime = 0;
     private readonly LANDING_IMPACT_COOLDOWN = 150;
 
-    private readonly DANGEROUS_VELOCITY_THRESHOLD = 50;
-    private readonly IMPACT_DAMAGE_VELOCITY_Y = 100;
+    private readonly DANGEROUS_VELOCITY_THRESHOLD = 30;
+    private readonly IMPACT_DAMAGE_VELOCITY_Y = 40;
     private readonly WEAR_AND_TEAR_DAMAGE = 1;
 
     // Flag to track if we were falling
@@ -69,7 +69,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         if (!this.body) return;
         const body = this.body as Phaser.Physics.Arcade.Body;
 
-        // Track if we're falling
+        // Track if we're falling faster than the landing impact threshold
         if (body.velocity.y > this.IMPACT_DAMAGE_VELOCITY_Y) {
             this.wasFalling = true;
         }
@@ -102,12 +102,12 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         const body = this.body as Phaser.Physics.Arcade.Body;
         const currentTime = this.scene.time.now;
 
-        // Boulder must have been falling and now be nearly stopped vertically
+        // Boulder must have been falling faster than threshold and now be nearly stopped vertically
         const stoppedFalling = Math.abs(body.velocity.y) < 10;
         const cooldownOver =
             currentTime - this.lastImpactTime > this.LANDING_IMPACT_COOLDOWN;
 
-        // Check if we were falling and have now stopped
+        // Check if we were falling hard and have now stopped
         if (this.wasFalling && stoppedFalling && cooldownOver) {
             console.log("Boulder landed with impact, taking damage");
             this.lastImpactTime = currentTime;
@@ -201,9 +201,11 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 if (target instanceof Enemy) {
                     target.takeDamage(999);
                     console.log("Boulder landed on enemy");
-                } else if (target instanceof Player && !this.safeForPlayer) {
-                    target.takeDamage(1);
-                    console.log("Boulder landed on player");
+                } else if (target instanceof Player) {
+                    if (!this.safeForPlayer) {
+                        target.takeDamage(1, "boulder_land");
+                        console.log("Boulder landed on player");
+                    }
                 } else if (target instanceof Spike) {
                     target.takeDamage(999);
                     console.log("Boulder landed on spike");
@@ -212,44 +214,53 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         });
     }
 
+    /**
+     * Applies damage to another object upon collision.
+     * Assumes the decision to deal damage was already made (e.g., based on velocity).
+     * Handles different damage amounts/effects based on target type.
+     * @param otherObject The object the boulder collided with.
+     * @returns True if the other object was actively damaged, false otherwise.
+     */
     public dealDamageOnCollision(
-        otherObject:
-            | Phaser.Types.Physics.Arcade.GameObjectWithBody
-            | Phaser.Tilemaps.Tile
+        otherObject: Player | Enemy | Spike // Simplified type, no Boulder here
     ): boolean {
-        const isMovingFast = this.isMovingDangerously();
-        const isFragileTarget = otherObject instanceof Spike;
-
-        if (!isMovingFast && !isFragileTarget) {
-            return false;
+        if (
+            !this.active ||
+            !("body" in otherObject) ||
+            !otherObject.body ||
+            !otherObject.active
+        ) {
+            return false; // Cannot deal damage if inactive or target invalid
         }
 
         let damaged = false;
+        const selfDamage = this.WEAR_AND_TEAR_DAMAGE; // Wear-and-tear damage
 
         if (otherObject instanceof Player) {
-            if (isMovingFast && !this.safeForPlayer) {
-                otherObject.takeDamage(this.damageAmount);
-                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
+            // Player damage is handled in Game.ts handlePlayerBoulderCollision
+            // This method might not even be called for Player if logic is fully in Game.ts
+            // However, if called, apply damage:
+            if (!this.safeForPlayer) {
+                // Still respect safety flag
+                otherObject.takeDamage(this.damageAmount, "boulder_collision");
+                this.takeDamage(selfDamage);
                 damaged = true;
-                this.playCollisionHitEffect();
+                this.playCollisionHitEffect(); // Play effect on successful hit
             }
-            this.markAsSafeForPlayer();
+            this.markAsSafeForPlayer(); // Mark safe regardless of damage dealt this frame
         } else if (otherObject instanceof Enemy) {
-            if (isMovingFast) {
-                otherObject.takeDamage(999);
-                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
-                damaged = true;
-                this.playCollisionHitEffect();
-            }
-        } else if (otherObject instanceof Spike) {
+            // Instantly kill enemies
             otherObject.takeDamage(999);
-            if (isMovingFast) {
-                this.takeDamage(this.WEAR_AND_TEAR_DAMAGE);
-            }
+            this.takeDamage(selfDamage);
             damaged = true;
             this.playCollisionHitEffect();
-        } else if (otherObject instanceof Boulder) {
-            // Boulder-boulder damage check happens in Game.ts to avoid double hits
+        } else if (otherObject instanceof Spike) {
+            // Destroy spikes
+            otherObject.takeDamage(999); // Use takeDamage which handles destruction
+            // Optionally, boulder takes less/no damage from fragile spike
+            // this.takeDamage(selfDamage / 2); // Example: less damage
+            damaged = true; // Spike was "damaged" (destroyed)
+            this.playCollisionHitEffect();
         }
 
         return damaged;

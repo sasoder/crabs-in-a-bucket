@@ -11,8 +11,6 @@ export class Enemy extends BaseGameEntity {
     private moveDirection = 1; // 1 for right, -1 for left
     private health = 1; // Example health
     protected gameScene: Game; // Changed to protected to match inheritance
-    private recentBoulderCollisions: Map<Boulder, number> = new Map(); // Track recent collisions
-    private boulderCollisionCooldown = 500; // ms between allowed collisions from same boulder
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         // Pass texture key to base constructor
@@ -41,10 +39,10 @@ export class Enemy extends BaseGameEntity {
         }
 
         // Check for collisions with walls (world bounds)
-        if (this.body.blocked.right) {
+        if (this.body.blocked.right && this.moveDirection === 1) {
             this.moveDirection = -1; // Move left
             this.updateFlipX();
-        } else if (this.body.blocked.left) {
+        } else if (this.body.blocked.left && this.moveDirection === -1) {
             this.moveDirection = 1; // Move right
             this.updateFlipX();
         }
@@ -55,23 +53,6 @@ export class Enemy extends BaseGameEntity {
         } else {
             // Optional: Slightly reduce horizontal speed when falling?
             // this.setVelocityX(this.moveDirection * this.moveSpeed * 0.8);
-        }
-
-        // Clean up old collision records
-        this.cleanupCollisionRecords(time);
-    }
-
-    /**
-     * Clean up old collision records to prevent memory leaks
-     */
-    private cleanupCollisionRecords(currentTime: number): void {
-        for (const [
-            boulder,
-            timestamp,
-        ] of this.recentBoulderCollisions.entries()) {
-            if (currentTime - timestamp > this.boulderCollisionCooldown) {
-                this.recentBoulderCollisions.delete(boulder);
-            }
         }
     }
 
@@ -86,8 +67,6 @@ export class Enemy extends BaseGameEntity {
         this.moveDirection = Math.random() < 0.5 ? 1 : -1;
         this.updateFlipX();
         this.setAlpha(1);
-        this.recentBoulderCollisions.clear(); // Clear collision history
-        // Ensure velocity is reset if needed
         this.setVelocity(0, 0);
     }
 
@@ -108,7 +87,6 @@ export class Enemy extends BaseGameEntity {
         if (!this.active) return;
 
         this.health -= amount;
-        // console.log(`Enemy took ${amount} damage, health: ${this.health}`);
         this.scene.tweens.add({
             targets: this,
             alpha: 0.5,
@@ -116,115 +94,50 @@ export class Enemy extends BaseGameEntity {
             yoyo: true,
         });
 
-        if (this.health <= 0) {
-            // console.log("Enemy defeated!");
-            this.destroy();
-        }
-    }
-
-    /**
-     * Handle enemy falling onto spikes
-     * @param spikeObject The spike that damaged this enemy
-     * @returns true if damage was applied
-     */
-    handleSpikeDamage(spikeObject: Phaser.GameObjects.GameObject): boolean {
-        if (!this.active) return false;
-
-        // Apply damage and knockback
-        this.takeDamage(1);
-
-        // Provide more visual/audio feedback for spike damage
-        if (this.active) {
-            // If enemy survived the damage
-            // Flash red
+        // Flash red on taking any damage
+        if (this.active && amount > 0) {
             this.setTint(0xff0000);
-            this.scene.time.delayedCall(150, () => {
+            this.scene.time.delayedCall(100, () => {
                 if (this.active) this.clearTint();
             });
-
-            // Play a hit sound if available
-            if (this.gameScene.sound) {
-                this.gameScene.sound.play("hit");
-            }
         }
 
-        return true;
+        if (this.health <= 0) {
+            this.destroy(); // Handles particles and sound
+        } else if (amount > 0) {
+            // Play hit sound only if damaged but not destroyed yet
+            // Consider if the destroy() method already plays a sound. If so, maybe remove this one.
+            // this.gameScene.sound.play("hit_light"); // Example: a lighter hit sound
+        }
     }
 
-    handleBoulderCollision(boulder: Boulder): boolean {
-        if (!this.active || !boulder.active) return false;
-
-        // Check for recent collision with this boulder to prevent damage spam
-        const currentTime = this.scene.time.now;
-        const lastCollisionTime =
-            this.recentBoulderCollisions.get(boulder) || 0;
-
-        if (currentTime - lastCollisionTime < this.boulderCollisionCooldown) {
-            // Recent collision with this boulder, don't process again
-            return false;
-        }
-
-        // Record this collision
-        this.recentBoulderCollisions.set(boulder, currentTime);
-
-        // Use boulder's isDangerous method - no special handling for enemies
-        if (boulder.isMovingDangerously()) {
-            // Apply damage to enemy
-            this.takeDamage(boulder.getDamageAmount());
-
-            // Boulder takes damage when it damages an enemy
-            boulder.takeDamage(1);
-
-            // Apply knockback in opposite direction of boulder's movement
-            if (this.active) {
-                const angle = Phaser.Math.Angle.Between(
-                    boulder.x,
-                    boulder.y,
-                    this.x,
-                    this.y
-                );
-                const knockbackForce = 150; // Fixed knockback force
-                this.setVelocity(
-                    Math.cos(angle) * knockbackForce,
-                    Math.min(-50, Math.sin(angle) * knockbackForce) // Ensure some upward bounce
-                );
-            }
-
-            return true;
-        } else {
-            // Boulder not dangerous - just change direction
-            this.changeDirection();
-            return false;
-        }
+    // Add a getter for move direction if needed by Game.ts spike handler
+    getMoveDirection(): number {
+        return this.moveDirection;
     }
 
     destroy(fromScene?: boolean): void {
-        // Create explosion effect before the enemy is destroyed
         if (this.active && this.scene.scene.key === "Game") {
-            // Store position before destroying
-            const enemyX = this.x - TILE_SIZE / 2;
-            const enemyY = this.y - TILE_SIZE / 2;
+            const enemyX = this.x; // Center for explosion
+            const enemyY = this.y;
 
-            // Access particleManager directly now that it's public
             const gameScene = this.scene as Game;
             if (gameScene.particleManager) {
                 gameScene.particleManager.triggerParticles(
-                    "enemy",
+                    "enemy", // Use the specific enemy particle key
                     enemyX,
                     enemyY,
                     {
-                        count: 12, // More particles for a good explosion effect
-                        speed: 80, // Faster particles for explosion feeling
-                        scale: 0.25, // Size of particles
-                        lifespan: 800, // How long particles last
+                        count: 12,
+                        speed: 80,
+                        scale: 0.25,
+                        lifespan: 800,
                     }
                 );
             }
+            // Play destruction sound here consistently
+            this.gameScene.sound.play("hit"); // Or a dedicated enemy death sound
         }
-
-        // Clear any collision records before destroying
-        this.recentBoulderCollisions.clear();
-        this.gameScene.sound.play("hit");
 
         super.destroy(fromScene);
     }

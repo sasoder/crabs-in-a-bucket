@@ -98,7 +98,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVelocityY(this.bounceVelocity);
     }
 
-    takeDamage(amount: number = 1): boolean {
+    takeDamage(amount: number = 1, source?: string): boolean {
         if (this.isInvulnerable) {
             return true; // Still alive, but took no damage
         }
@@ -216,14 +216,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         // Check if boulder is dangerous specifically for the player
-        if (obstacle.isDangerous(true)) {
+        if (obstacle.isMovingDangerously() && !obstacle.safeForPlayer) {
             // Boulder is moving fast enough to be dangerous to player
             console.log(
                 `Player hit by dangerous boulder! Velocity: ${obstacle
                     .getVelocityMagnitude()
                     .toFixed(1)}`
             );
-            this.takeDamage();
+            this.takeDamage(1, "boulder_collision"); // Pass source
 
             // Boulder takes damage when it damages the player
             obstacle.takeDamage(1);
@@ -247,6 +247,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         // Mark the boulder as safe for player (but still dangerous to enemies)
         obstacle.markAsSafeForPlayer();
+    }
+
+    // Placeholder for isDangerous - might not be needed if boulder handles it
+    public isDangerous(forPlayer: boolean = false): boolean {
+        // Player itself isn't "dangerous" in the same way a boulder is.
+        // This might be needed if other entities react to player state.
+        return false;
     }
 
     handleEnemyCollision(enemy: Enemy): boolean {

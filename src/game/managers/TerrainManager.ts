@@ -355,7 +355,7 @@ export class TerrainManager {
                     const spike = new Spike(
                         this.scene,
                         spawnWorldX - TILE_SIZE / 2, // Adjust X back because origin is center now
-                        spikeSpawnY // Y is the top of the row
+                        spikeSpawnY - 40 // Y is the top of the row
                     );
                     // Add to the static group
                     this.spikesGroup.add(spike);
