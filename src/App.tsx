@@ -349,7 +349,7 @@ function App() {
         <TooltipProvider>
             <div
                 id="app"
-                className="h-screen w-screen bg-[#87ceeb]/20 flex justify-center items-center"
+                className="h-screen w-screen bg-[#87ceeb]/20 flex justify-center items-center relative"
             >
                 {renderContent()}
                 <ShopModal
@@ -362,6 +362,16 @@ function App() {
                     onClose={closeGameOver}
                     data={gameOverData}
                 />
+
+                {/* GitHub Link Footer */}
+                <a
+                    href="https://github.com/sasoder"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-4 text-white/70 hover:text-white text-sm transition-colors"
+                >
+                    @sasoder
+                </a>
             </div>
         </TooltipProvider>
     );
