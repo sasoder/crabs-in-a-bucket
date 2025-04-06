@@ -430,6 +430,10 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ) {
+        // --- ADDED LOGGING ---
+        console.log(`Collision: Enemy Spike at time ${this.time.now}`);
+        // --- END LOGGING ---
+
         if (!(enemyGO instanceof Enemy) || !(spikeGO instanceof Spike)) return;
         if (!enemyGO.active || !spikeGO.active) return;
 
@@ -481,6 +485,10 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ) {
+        // --- ADDED LOGGING ---
+        console.log(`Collision: Boulder Spike at time ${this.time.now}`);
+        // --- END LOGGING ---
+
         if (!(boulderGO instanceof Boulder) || !(spikeGO instanceof Spike))
             return;
         if (!boulderGO.active || !spikeGO.active) return;

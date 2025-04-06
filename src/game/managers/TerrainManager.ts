@@ -293,7 +293,7 @@ export class TerrainManager {
         // 2. Create Row Visual (TileSprite)
         const visual = this.scene.add.tileSprite(
             this.mapWidthPixels / 2, // Center X
-            worldY + TILE_SIZE / 2, // Center Y
+            worldY + TILE_SIZE / 2 - 2, // Center Y
             this.mapWidthPixels, // Full width
             TILE_SIZE, // Full height
             "dirt_tile" // Use the dirt texture
@@ -333,6 +333,16 @@ export class TerrainManager {
             let spaceOccupied = false;
             // Need to check spikes group too now for occupancy
             const checkRadius = TILE_SIZE * 0.8; // Check slightly smaller than tile
+
+            // IMPROVED OCCUPANCY CHECK - Use a more comprehensive check to prevent entities spawning too close
+            // Check a larger area to give entities more space from each other
+            const safeSpawnCheckArea = {
+                x: spawnWorldX - TILE_SIZE, // Check 1 full tile to the left
+                y: spawnSurfaceY - TILE_SIZE, // Check 1 full tile above
+                width: TILE_SIZE * 2, // 2 tiles wide (1 left, 1 right)
+                height: TILE_SIZE * 1.5, // 1.5 tiles high
+            };
+
             const groupsToCheck = [
                 this.bouldersGroup,
                 this.enemiesGroup,
@@ -346,14 +356,26 @@ export class TerrainManager {
                     const body = go.body as
                         | Phaser.Physics.Arcade.Body
                         | Phaser.Physics.Arcade.StaticBody;
+                    if (!body) return;
+
+                    // Use rectangle overlap check instead of distance
+                    const entityBounds = {
+                        x: body.position.x,
+                        y: body.position.y,
+                        width: body.width,
+                        height: body.height,
+                    };
+
+                    // Check if entity bounds overlap with our safe spawn area
                     if (
-                        body &&
-                        Math.abs(
-                            body.position.x + body.offset.x - spawnWorldX
-                        ) < checkRadius &&
-                        Math.abs(
-                            body.position.y + body.offset.y - spawnSurfaceY
-                        ) < checkRadius
+                        entityBounds.x <
+                            safeSpawnCheckArea.x + safeSpawnCheckArea.width &&
+                        entityBounds.x + entityBounds.width >
+                            safeSpawnCheckArea.x &&
+                        entityBounds.y <
+                            safeSpawnCheckArea.y + safeSpawnCheckArea.height &&
+                        entityBounds.y + entityBounds.height >
+                            safeSpawnCheckArea.y
                     ) {
                         spaceOccupied = true;
                     }
@@ -363,7 +385,12 @@ export class TerrainManager {
 
             if (spaceOccupied) continue; // Skip spawning if something is already there
 
-            if (Math.random() < currentBoulderChance) {
+            // ADDITIONAL SPAWN LIMITER - Reduce entity density for performance
+            // Only allow one entity type per column with low probability
+            const spawnCategory = Math.random();
+            let entitySpawned = false;
+
+            if (spawnCategory < currentBoulderChance && !entitySpawned) {
                 const boulder = new Boulder(
                     this.scene,
                     spawnWorldX,
@@ -372,8 +399,11 @@ export class TerrainManager {
                 // Set depth higher than tiles to draw on top
                 boulder.setDepth(10);
                 this.bouldersGroup.add(boulder);
-                spaceOccupied = true; // Mark space as occupied
-            } else if (Math.random() < currentEnemyChance) {
+                entitySpawned = true;
+            } else if (
+                spawnCategory < currentBoulderChance + currentEnemyChance &&
+                !entitySpawned
+            ) {
                 const enemy = new Enemy(
                     this.scene,
                     spawnWorldX,
@@ -383,8 +413,14 @@ export class TerrainManager {
                 enemy.setDepth(10);
                 enemy.setSpeed(currentEnemySpeed);
                 this.enemiesGroup.add(enemy);
-                spaceOccupied = true; // Mark space as occupied
-            } else if (Math.random() < currentSpikeChance) {
+                entitySpawned = true;
+            } else if (
+                spawnCategory <
+                    currentBoulderChance +
+                        currentEnemyChance +
+                        currentSpikeChance &&
+                !entitySpawned
+            ) {
                 if (this.spikesGroup) {
                     // Spawn Y is now the top of the row's tile space,
                     // as the Spike's origin is at its base.
@@ -397,11 +433,11 @@ export class TerrainManager {
                     spike.setDepth(10);
                     // Add to the static group
                     this.spikesGroup.add(spike);
-                    spaceOccupied = true; // Mark space as occupied
+                    entitySpawned = true;
                 }
             }
 
-            if (!spaceOccupied && Math.random() < currentCoinChance) {
+            if (!entitySpawned && Math.random() < currentCoinChance) {
                 const coin = Coin.spawn(
                     this.scene,
                     this.coinsGroup as Phaser.Physics.Arcade.Group,

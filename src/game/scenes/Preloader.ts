@@ -108,6 +108,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.audio("jump", "assets/audio/jump.wav");
         this.load.audio("tick", "assets/audio/tick.wav");
         this.load.audio("explosion", "assets/audio/explosion.wav");
+        this.load.audio("bg", "assets/audio/bg.wav");
         // ... add all other consumable images ...
     }
 

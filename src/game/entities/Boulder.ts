@@ -25,11 +25,18 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     // Flag to track if we were falling
     private wasFalling = false;
 
+    // Add spawn grace period tracking
+    private spawnTime: number;
+    private readonly spawnGracePeriod = 250; // ms of invulnerability after spawn
+
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x + TILE_SIZE / 2, y + TILE_SIZE / 2, "boulder");
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.gameScene = scene as Game;
+
+        // Record spawn time
+        this.spawnTime = this.scene.time.now;
 
         this.setCollideWorldBounds(true);
         this.setBounce(0.2);
@@ -102,6 +109,12 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         const body = this.body as Phaser.Physics.Arcade.Body;
         const currentTime = this.scene.time.now;
 
+        // Skip ALL landing logic during grace period
+        if (currentTime < this.spawnTime + this.spawnGracePeriod) {
+            this.wasFalling = false; // Reset falling state during grace period
+            return; // Exit early
+        }
+
         // Boulder must have been falling faster than threshold and now be nearly stopped vertically
         const stoppedFalling = Math.abs(body.velocity.y) < 10;
         const cooldownOver =
@@ -109,7 +122,6 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
 
         // Check if we were falling hard and have now stopped
         if (this.wasFalling && stoppedFalling && cooldownOver) {
-            console.log("Boulder landed with impact, taking damage");
             this.lastImpactTime = currentTime;
             this.wasFalling = false; // Reset falling state
 
@@ -238,6 +250,10 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         let damaged = false;
         const selfDamage = this.WEAR_AND_TEAR_DAMAGE; // Wear-and-tear damage
 
+        // --- ADDED CHECK: Only take self-damage if moving dangerously ---
+        const shouldTakeSelfDamage = this.isMovingDangerously();
+        // --- END CHECK ---
+
         if (otherObject instanceof Player) {
             // Player damage is handled in Game.ts handlePlayerBoulderCollision
             // This method might not even be called for Player if logic is fully in Game.ts
@@ -245,7 +261,11 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             if (!this.safeForPlayer) {
                 // Still respect safety flag
                 otherObject.takeDamage(this.damageAmount, "boulder_collision");
-                this.takeDamage(selfDamage);
+                // --- USE CHECK FOR SELF-DAMAGE ---
+                if (shouldTakeSelfDamage) {
+                    this.takeDamage(selfDamage);
+                }
+                // --- END CHECK ---
                 damaged = true;
                 this.playCollisionHitEffect(); // Play effect on successful hit
             }
@@ -253,7 +273,11 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         } else if (otherObject instanceof Enemy) {
             // Instantly kill enemies
             otherObject.takeDamage(999);
-            this.takeDamage(selfDamage);
+            // --- USE CHECK FOR SELF-DAMAGE ---
+            if (shouldTakeSelfDamage) {
+                this.takeDamage(selfDamage);
+            }
+            // --- END CHECK ---
             damaged = true;
             this.playCollisionHitEffect();
         } else if (otherObject instanceof Spike) {
@@ -314,6 +338,15 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     }
 
     public takeDamage(amount: number = 1): boolean {
+        // Grace period check remains here for direct damage calls
+        if (
+            this.active &&
+            this.scene.time.now < this.spawnTime + this.spawnGracePeriod
+        ) {
+            // console.log("Boulder ignoring direct damage during grace period"); // Optional debug
+            return true; // Still alive, just invulnerable
+        }
+
         if (!this.active) return false;
 
         this.health -= amount;

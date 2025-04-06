@@ -12,10 +12,14 @@ export class Enemy extends BaseGameEntity {
     private health = 1; // Example health
     protected gameScene: Game; // Changed to protected to match inheritance
 
+    private spawnTime: number; // Track when the enemy was created
+    private readonly spawnGracePeriod = 250; // ms of invulnerability after spawn
+
     constructor(scene: Phaser.Scene, x: number, y: number) {
         // Pass texture key to base constructor
         super(scene, x, y, "enemy"); // Assuming 'enemy' texture exists
         this.gameScene = scene as Game;
+        this.spawnTime = this.scene.time.now; // Record spawn time
 
         // Specific Enemy setup
         this.body?.setSize(TILE_SIZE * 0.7, TILE_SIZE * 0.8);
@@ -68,6 +72,7 @@ export class Enemy extends BaseGameEntity {
         this.updateFlipX();
         this.setAlpha(1);
         this.setVelocity(0, 0);
+        this.spawnTime = this.scene.time.now; // Reset spawn time on reset too
     }
 
     setDirection(direction: number): void {
@@ -84,6 +89,16 @@ export class Enemy extends BaseGameEntity {
     }
 
     takeDamage(amount: number): void {
+        // --- Add grace period check ---
+        if (
+            this.active &&
+            this.scene.time.now < this.spawnTime + this.spawnGracePeriod
+        ) {
+            // console.log("Enemy ignoring damage during spawn grace period");
+            return; // Exit early, no damage taken
+        }
+        // --- End grace period check ---
+
         if (!this.active) return;
 
         this.health -= amount;
@@ -94,7 +109,7 @@ export class Enemy extends BaseGameEntity {
             yoyo: true,
         });
 
-        // Flash red on taking any damage
+        // Flash red on taking any damage (if survived grace period)
         if (this.active && amount > 0) {
             this.setTint(0xff0000);
             this.scene.time.delayedCall(100, () => {
