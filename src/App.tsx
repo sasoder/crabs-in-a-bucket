@@ -106,14 +106,15 @@ function App() {
                                 className="w-16 mx-auto mb-4"
                                 style={{
                                     imageRendering: "pixelated",
-                                    filter: "drop-shadow(0 0 10px rgba(255, 255, 255, 0.3))",
+                                    filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
                                 }}
                             />
                         </div>
                         <h1
                             className="text-8xl mb-4 text-white"
                             style={{
-                                textShadow: "0 0 50px rgba(254, 254, 254, 0.3)",
+                                textShadow:
+                                    "0 0 50px rgba(254, 254, 254, 0.25)",
                             }}
                         >
                             Just Dig
@@ -127,10 +128,6 @@ function App() {
                         >
                             Well don't mind if I do
                         </Button>
-                        <p className="text-white/50 mt-8">
-                            Controls: arrow keys move/jump. Space bar to use
-                            items.
-                        </p>
                     </div>
                 ) : (
                     // Add a relative container around the game and its UI
