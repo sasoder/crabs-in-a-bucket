@@ -206,8 +206,7 @@ export default class Game extends Phaser.Scene {
             );
 
             // Enemy <-> Spikes (Immediate Damage)
-            this.physics.add.collider(
-                // Use collider for solid interaction
+            this.physics.add.overlap(
                 this.enemiesGroup,
                 spikesGroup,
                 this
@@ -369,36 +368,42 @@ export default class Game extends Phaser.Scene {
         const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
         const boulderBody = boulder.body as Phaser.Physics.Arcade.Body;
 
-        // Check if enemy is falling onto the boulder from above
-        const isEnemyFallingOntoBoulder =
-            enemyBody.velocity.y > 50 && // Enemy falling down
-            enemyBody.bottom <= boulderBody.top + 10 && // Enemy was above boulder
+        // Check if this is a TOP-DOWN collision (enemy on boulder)
+        const isVerticalCollision =
+            enemyBody.bottom <= boulderBody.top + 8 && // Enemy's feet are at/above boulder's top
             Math.abs(enemyBody.center.x - boulderBody.center.x) <
-                TILE_SIZE * 0.7; // Horizontally aligned
+                boulderBody.width * 0.7; // Horizontally aligned
 
-        // Also check if enemy is standing on the boulder (no significant horizontal velocity)
-        const isEnemyOnBoulder =
-            enemyBody.bottom <= boulderBody.top + 10 && // Position check
-            Math.abs(enemyBody.center.x - boulderBody.center.x) <
-                TILE_SIZE * 0.7 && // Horizontally aligned
-            Math.abs(enemyBody.velocity.y) < 30; // Low vertical velocity (not jumping/falling much)
+        if (isVerticalCollision) {
+            // Enemy is landing on or standing on boulder - NEVER damage the enemy
+            // console.log("Enemy on boulder - NO DAMAGE");
 
-        if (isEnemyFallingOntoBoulder || isEnemyOnBoulder) {
-            // Enemy fell on boulder from above or is standing on it, don't damage enemy
-            // This makes the enemy ride the boulder
-            return;
+            // If enemy is moving significantly horizontally but boulder is mostly still,
+            // We might need to change direction if they "walk onto" a stationary boulder
+            if (
+                Math.abs(enemyBody.velocity.x) > 20 &&
+                Math.abs(boulderBody.velocity.x) < 10
+            ) {
+                // Only change direction if moving toward boulder center
+                if (
+                    (enemyBody.center.x < boulderBody.center.x &&
+                        enemy.getMoveDirection() === 1) ||
+                    (enemyBody.center.x > boulderBody.center.x &&
+                        enemy.getMoveDirection() === -1)
+                ) {
+                    enemy.changeDirection();
+                }
+            }
+            return; // Exit early, no damage to either
         }
 
-        // Check if the boulder is moving significantly
+        // This must be a SIDE collision if we got here
         if (boulder.isMovingDangerously()) {
-            // Boulder is moving, damage the enemy (instant kill)
-            enemy.takeDamage(999);
-            // Boulder takes wear-and-tear damage from hitting an enemy
-            boulder.takeDamage(1);
-            // Boulder might play a hit effect in its takeDamage method or here
-            // boulder.playCollisionHitEffect(); // Example if needed
+            // Boulder is moving significantly, damage the enemy
+            enemy.takeDamage(999); // Kill enemy
+            boulder.takeDamage(1); // Small damage to boulder
         } else {
-            // Boulder is relatively still, enemy just turns around
+            // Slow/stationary boulder, enemy just turns around
             enemy.changeDirection();
         }
     }
@@ -430,51 +435,65 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ) {
-        // --- ADDED LOGGING ---
-        console.log(`Collision: Enemy Spike at time ${this.time.now}`);
-        // --- END LOGGING ---
-
         if (!(enemyGO instanceof Enemy) || !(spikeGO instanceof Spike)) return;
         if (!enemyGO.active || !spikeGO.active) return;
 
         const enemy = enemyGO as Enemy;
         const spike = spikeGO as Spike;
 
+        // Since we're using overlap, let's directly get enemy and spike positions
         const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
         const spikeBody = spike.body as Phaser.Physics.Arcade.StaticBody;
 
-        // Check if the enemy is falling onto the spike
-        const isFalling = enemyBody.velocity.y > 50; // Threshold for falling speed
-        const isAboveSpike = enemyBody.bottom <= spikeBody.top + 10; // Check vertical position relative to spike top
+        // Check if enemy is falling onto spike from above
+        const isFalling = enemyBody.velocity.y > 20; // More lenient threshold
+        const isAboveSpike =
+            // Check if enemy's bottom is near the spike's top collision area
+            enemyBody.bottom >= spikeBody.top - 5 &&
+            enemyBody.bottom <= spikeBody.top + spikeBody.height * 0.4;
 
-        if (isFalling && isAboveSpike) {
-            // Falling onto spike: Damage the enemy
-            enemy.takeDamage(spike.damageAmount);
-            // Optional: Play a specific sound or effect
-            // console.log("Enemy fell onto spike");
-        } else if (
-            enemyBody.blocked.left ||
-            enemyBody.blocked.right ||
-            enemyBody.touching.left ||
-            enemyBody.touching.right
-        ) {
-            // Walking into spike: Change direction
-            // Ensure we don't immediately change direction again if still touching after turning
-            if (
-                (enemyBody.blocked.right || enemyBody.touching.right) &&
-                enemy.getMoveDirection() === 1
-            ) {
+        // Check if horizontally aligned with the spike
+        const isAlignedWithSpike =
+            Math.abs(enemyBody.center.x - spikeBody.center.x) <
+            spikeBody.width * 0.7;
+
+        // Check if this is a vertical landing interaction
+        if (isFalling && isAboveSpike && isAlignedWithSpike) {
+            // Only damage if we haven't just damaged this enemy (prevent multiple damage ticks)
+            if (!enemy.getData("recentlyDamagedBySpike")) {
+                console.log("Enemy landed on spike - TAKING DAMAGE");
+                enemy.takeDamage(spike.damageAmount);
+
+                // Set a flag to prevent damage spam
+                enemy.setData("recentlyDamagedBySpike", true);
+                this.time.delayedCall(200, () => {
+                    if (enemy.active)
+                        enemy.setData("recentlyDamagedBySpike", false);
+                });
+            }
+            return;
+        }
+
+        // Handle side collision - enemy walking into spike from side
+        const isWalkingIntoSpike =
+            (enemyBody.velocity.x > 0 &&
+                enemyBody.right >= spikeBody.left &&
+                enemyBody.right <= spikeBody.left + 10) ||
+            (enemyBody.velocity.x < 0 &&
+                enemyBody.left <= spikeBody.right &&
+                enemyBody.left >= spikeBody.right - 10);
+
+        if (isWalkingIntoSpike) {
+            // Check direction and flip if needed
+            if (enemyBody.velocity.x > 0 && enemy.getMoveDirection() === 1) {
                 enemy.changeDirection();
-                // console.log("Enemy walked into spike right, changing direction");
             } else if (
-                (enemyBody.blocked.left || enemyBody.touching.left) &&
+                enemyBody.velocity.x < 0 &&
                 enemy.getMoveDirection() === -1
             ) {
                 enemy.changeDirection();
-                // console.log("Enemy walked into spike left, changing direction");
             }
         }
-        // Otherwise (e.g., standing next to it but not moving into it), do nothing.
     }
 
     private handleBoulderSpikeCollision(
