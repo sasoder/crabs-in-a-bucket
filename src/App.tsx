@@ -192,7 +192,7 @@ function App() {
                     <div className="text-center flex flex-col items-center gap-8 justify-center max-w-lg">
                         <div className="flex flex-row items-center justify-center gap-4">
                             <img
-                                src="assets/relics/heart_stone.png"
+                                src="assets/ui/heart.png"
                                 alt="Heart Stone"
                                 className="w-20 mx-auto"
                                 style={{
