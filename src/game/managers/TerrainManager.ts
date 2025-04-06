@@ -382,66 +382,46 @@ export class TerrainManager {
         for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
             const spawnWorldX = tileX * TILE_SIZE + TILE_SIZE / 2;
 
-            // Check for existing entities at this position
+            // --- Use physics overlap check instead of manual iteration ---
             let spaceOccupied = false;
-            let occupyingEntityInfo = "None"; // For logging
+            const checkRect = new Phaser.Geom.Rectangle(
+                spawnWorldX - TILE_SIZE / 2, // Centered on tile X
+                spawnSurfaceY - TILE_SIZE, // Check slightly above surface
+                TILE_SIZE, // Tile width
+                TILE_SIZE * 1.5 // Check area slightly taller than a tile
+            );
 
-            // Define a precise area for checking entity overlap
-            const safeSpawnCheckArea = {
-                x: spawnWorldX - TILE_SIZE / 2,
-                y: spawnSurfaceY - TILE_SIZE / 2,
-                width: TILE_SIZE,
-                height: TILE_SIZE,
-            };
+            // Perform the overlap check against relevant groups
+            const overlappingBodies = this.scene.physics.overlapRect(
+                checkRect.x,
+                checkRect.y,
+                checkRect.width,
+                checkRect.height,
+                true, // include dynamic bodies (enemies, boulders)
+                true // include static bodies (spikes)
+            );
 
-            // Check all entity groups to see if the space is already occupied
-            const groupsToCheck = [
-                this.bouldersGroup,
-                this.enemiesGroup,
-                this.spikesGroup,
-                // Don't check coins group here, as they shouldn't block others
-            ];
+            // Filter out non-entity bodies and check if any relevant entity overlaps
+            if (overlappingBodies.length > 0) {
+                const relevantGroups: (
+                    | Phaser.Physics.Arcade.Group
+                    | Phaser.Physics.Arcade.StaticGroup
+                )[] = [this.bouldersGroup, this.enemiesGroup];
+                if (this.spikesGroup) relevantGroups.push(this.spikesGroup); // Add spikes if they exist
 
-            for (const group of groupsToCheck) {
-                if (!group) continue;
-
-                group.getChildren().forEach((go) => {
-                    // Added check to prevent reading body of already potentially destroyed object
-                    if (!go || !go.body) return;
-
-                    const body = go.body as
-                        | Phaser.Physics.Arcade.Body
-                        | Phaser.Physics.Arcade.StaticBody;
-
-                    // Check if entity bounds overlap with our safe spawn area
-                    const entityBounds = {
-                        x: body.position.x,
-                        y: body.position.y,
-                        width: body.width,
-                        height: body.height,
-                    };
-
-                    if (
-                        entityBounds.x <
-                            safeSpawnCheckArea.x + safeSpawnCheckArea.width &&
-                        entityBounds.x + entityBounds.width >
-                            safeSpawnCheckArea.x &&
-                        entityBounds.y <
-                            safeSpawnCheckArea.y + safeSpawnCheckArea.height &&
-                        entityBounds.y + entityBounds.height >
-                            safeSpawnCheckArea.y
-                    ) {
-                        spaceOccupied = true;
-                        // Get more info about the blocking entity
-                        const entityType =
-                            (go.constructor as any).name || "Unknown";
-                        occupyingEntityInfo = `${entityType} at (${body.position.x.toFixed(
-                            1
-                        )}, ${body.position.y.toFixed(1)})`;
-                    }
+                spaceOccupied = overlappingBodies.some((body) => {
+                    const gameObject = body.gameObject;
+                    // Ensure gameObject exists before checking contains
+                    if (!gameObject) return false;
+                    return relevantGroups.some(
+                        (group) => group && group.contains(gameObject)
+                    );
                 });
+            }
 
-                if (spaceOccupied) break; // Stop checking groups if occupied
+            // Skip spawning if the space is occupied
+            if (spaceOccupied) {
+                continue;
             }
 
             // Check Boulder
