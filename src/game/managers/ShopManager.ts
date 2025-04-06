@@ -42,8 +42,8 @@ export class ShopManager {
         const shopSelection = this._selectShopItems();
         this.currentShopRelicIds = shopSelection.relicIds;
         this.currentShopConsumableIds = shopSelection.consumableIds;
-        // Base reroll cost + scaling based on how many shops have been seen
-        this.currentRerollCost = 5 + Math.floor(this.maxDepthReached / 10) * 2; // Example scaling
+        // Fixed reroll cost
+        this.currentRerollCost = 5;
 
         console.log(
             `Opening Shop at Depth ${this.maxDepthReached}. Items:`,
@@ -95,9 +95,8 @@ export class ShopManager {
         if (currentCoins >= this.currentRerollCost) {
             this.registry.set("coins", currentCoins - this.currentRerollCost);
 
-            // Increase reroll cost more significantly
-            this.currentRerollCost =
-                Math.ceil(this.currentRerollCost * 1.6) + 2;
+            // Increase reroll cost by a fixed amount
+            this.currentRerollCost += 2;
 
             const shopSelection = this._selectShopItems();
             this.currentShopRelicIds = shopSelection.relicIds;
@@ -136,21 +135,14 @@ export class ShopManager {
         let purchaseMessage = "";
         let notification = "";
 
-        // More dynamic cost scaling - increases more significantly with depth
-        const BASE_RELIC_COST = 15;
-        const BASE_CONSUMABLE_COST = 8;
-        // Cost increases every 10 levels, more steeply
-        const shopLevel = Math.floor(this.maxDepthReached / 10);
-        const relicCostMultiplier = 1 + shopLevel * 0.5;
-        const consumableCostMultiplier = 1 + shopLevel * 0.3;
-
         if (data.itemType === "relic") {
             const relic = RELICS[data.itemId];
             if (!relic) {
                 console.error(`Invalid relic ID: ${data.itemId}`);
                 return;
             }
-            itemCost = Math.ceil(BASE_RELIC_COST * relicCostMultiplier);
+
+            itemCost = relic.cost;
             const currentRelics = this.registry.get("relics") as string[];
 
             if (currentCoins >= itemCost) {
@@ -170,9 +162,8 @@ export class ShopManager {
                 console.error(`Invalid consumable ID: ${data.itemId}`);
                 return;
             }
-            itemCost = Math.ceil(
-                BASE_CONSUMABLE_COST * consumableCostMultiplier
-            );
+
+            itemCost = consumable.cost;
             const currentConsumables = this.registry.get(
                 "consumables"
             ) as string[];

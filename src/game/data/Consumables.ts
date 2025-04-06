@@ -12,9 +12,9 @@ export interface Consumable {
 export const CONSUMABLES: { [key: string]: Consumable } = {
     HEART_ROOT: {
         id: "HEART_ROOT",
-        name: "Heart Root",
-        description: "A gnarled root pulsating with life.",
-        effect: "Instantly restores 1 lost life.",
+        name: "Heart",
+        description: "A heart pulsating with life.",
+        effect: "Instantly gain 1 life.",
         spriteKey: "heart",
         cost: 15,
         isEntity: false,

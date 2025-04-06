@@ -83,6 +83,8 @@ export default class Game extends Phaser.Scene {
 
         // Set a name for the boulders group for easier identification
         this.bouldersGroup.name = "bouldersGroup";
+        // Set depth for all boulders to be above the tiles
+        this.bouldersGroup.setDepth(10);
 
         this.enemiesGroup = this.physics.add.group({
             classType: Enemy,
@@ -93,6 +95,9 @@ export default class Game extends Phaser.Scene {
             dragX: 0,
             bounceX: 0.1,
         });
+        // Set depth for all enemies to be above the tiles
+        this.enemiesGroup.setDepth(10);
+
         this.coinsGroup = this.physics.add.group({
             classType: Coin,
             runChildUpdate: false,
@@ -102,6 +107,8 @@ export default class Game extends Phaser.Scene {
             bounceY: 0.3,
             dragX: 80,
         });
+        // Set depth for all coins to be above the tiles
+        this.coinsGroup.setDepth(10);
 
         this.particleManager = new ParticleManager(this);
         this.particleManager.initializeEmitters(["dirt_tile", "enemy"]);
@@ -136,6 +143,8 @@ export default class Game extends Phaser.Scene {
         this.initialPlayerY = spawnPoint.y;
         this.player = new Player(this, spawnPoint.x, spawnPoint.y);
         this.player.setName("player");
+        // Set the player's depth to be above the tiles, same as other entities
+        this.player.setDepth(10);
 
         // Create TNT group
         this.tntGroup = this.physics.add.group({
@@ -147,6 +156,8 @@ export default class Game extends Phaser.Scene {
             bounceY: 0.2,
         });
         this.tntGroup.name = "tntGroup";
+        // Set depth for all TNT to be above the tiles
+        this.tntGroup.setDepth(10);
 
         // Set up collision handling in a more declarative way
         this.setupCollisions();

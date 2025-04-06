@@ -77,6 +77,9 @@ export class TerrainManager {
         // --- Initialize new groups ---
         this.rowColliderGroup = this.scene.physics.add.staticGroup();
         this.rowVisualsGroup = this.scene.add.group();
+
+        // Set the depth of the rowVisualsGroup to be behind entities
+        this.rowVisualsGroup.setDepth(0);
         // -----------------------------
 
         // --- Remove tilemap and layer creation ---
@@ -268,6 +271,8 @@ export class TerrainManager {
             TILE_SIZE, // Full height
             "dirt_tile" // Use the dirt texture
         );
+        // Set a low depth value for the visual row to ensure it's drawn behind entities
+        visual.setDepth(0);
         this.rowVisualsGroup.add(visual);
         this.rowVisuals.set(tileY, visual);
 
@@ -337,6 +342,8 @@ export class TerrainManager {
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
+                // Set depth higher than tiles to draw on top
+                boulder.setDepth(10);
                 this.bouldersGroup.add(boulder);
                 spaceOccupied = true; // Mark space as occupied
             } else if (Math.random() < currentEnemyChance) {
@@ -345,6 +352,8 @@ export class TerrainManager {
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
+                // Set depth higher than tiles to draw on top
+                enemy.setDepth(10);
                 enemy.setSpeed(currentEnemySpeed);
                 this.enemiesGroup.add(enemy);
                 spaceOccupied = true; // Mark space as occupied
@@ -355,8 +364,10 @@ export class TerrainManager {
                     const spike = new Spike(
                         this.scene,
                         spawnWorldX - TILE_SIZE / 2, // Adjust X back because origin is center now
-                        spikeSpawnY - 40 // Y is the top of the row
+                        spikeSpawnY + 10 // Y is the top of the row
                     );
+                    // Set depth higher than tiles to draw on top
+                    spike.setDepth(10);
                     // Add to the static group
                     this.spikesGroup.add(spike);
                     spaceOccupied = true; // Mark space as occupied
@@ -364,12 +375,17 @@ export class TerrainManager {
             }
 
             if (!spaceOccupied && Math.random() < currentCoinChance) {
-                Coin.spawn(
+                const coin = Coin.spawn(
                     this.scene,
                     this.coinsGroup as Phaser.Physics.Arcade.Group,
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
+                // Coins.spawn returns void, not the coin instance, so we'll set depth for the entire group
+                if (this.coinsGroup) {
+                    // Set depth for all coins in the group
+                    this.coinsGroup.setDepth(10);
+                }
             }
         }
     }

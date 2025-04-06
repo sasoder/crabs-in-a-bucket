@@ -31,9 +31,9 @@ export function StatsDisplay({ stats }: StatsDisplayProps) {
                 <div className="flex items-center">
                     <Coin size="md" cost={stats.coins} />
                 </div>
-                <div className="">
+                <div className="ml-2">
                     <span style={{ textShadow: "0px 2px 3px rgba(0,0,0,0.5)" }}>
-                        Depth: {stats.depth}
+                        {stats.depth} m
                     </span>
                 </div>
             </div>

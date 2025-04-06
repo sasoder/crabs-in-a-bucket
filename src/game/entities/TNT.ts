@@ -24,6 +24,9 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         this.setGravityY(300);
         this.setFriction(1); // High friction to prevent sliding
 
+        // Set depth to appear above tiles
+        this.setDepth(10);
+
         // Set high drag to prevent excessive rolling
         if (this.body) {
             const body = this.body as Phaser.Physics.Arcade.Body;

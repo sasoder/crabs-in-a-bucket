@@ -12,7 +12,7 @@ import { Coin } from "./Coin";
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private moveSpeed = 80; // Base speed
     private jumpVelocity = -130; // Base jump velocity
-    private bounceVelocity = -100; // Bounce after stomp
+    private bounceVelocity = -150; // Bounce after stomp
     private digCooldown = 150; // Milliseconds between digs
     private lastDigTime = 0;
     public isInvulnerable = false;
@@ -268,6 +268,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + 8; // Increased tolerance
 
         if (isStomping) {
+            const hasSteelBoots = (
+                this.scene.registry.get("relics") as string[]
+            ).includes("STEEL_BOOTS");
+            if (!hasSteelBoots) {
+                this.takeDamage(1);
+                this.bounce();
+                return true;
+            }
             console.log("Enemy stomped!");
             enemy.takeDamage(999);
             this.bounce();
