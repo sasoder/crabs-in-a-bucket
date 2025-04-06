@@ -137,6 +137,7 @@ function App() {
                                 variant="secondary"
                                 onClick={startGame}
                                 className={cn(
+                                    "cursor-pointer",
                                     "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                                 )}
                                 style={buttonStyle}
@@ -175,6 +176,7 @@ function App() {
                                 variant="secondary"
                                 onClick={() => setGameState("lore")}
                                 className={cn(
+                                    "cursor-pointer",
                                     "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                                 )}
                                 style={buttonStyle}
@@ -232,6 +234,7 @@ function App() {
                                 variant="secondary"
                                 onClick={() => setGameState("controls")}
                                 className={cn(
+                                    "cursor-pointer",
                                     "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                                 )}
                                 style={buttonStyle}
@@ -308,6 +311,7 @@ function App() {
                                 variant="secondary"
                                 onClick={startActualGame}
                                 className={cn(
+                                    "cursor-pointer",
                                     "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                                 )}
                                 style={buttonStyle}
