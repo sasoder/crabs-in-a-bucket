@@ -53,6 +53,11 @@ export class Coin extends Phaser.Physics.Arcade.Image {
                 coin.setVisible(true);
                 coin.setScale(0.8);
 
+                // Add glow effect
+                if (coin.postFX) {
+                    coin.postFX.addGlow(0xffff07, 0.5, 0, false, 0.1, 10);
+                }
+
                 const body = coin.body as Phaser.Physics.Arcade.Body | null;
                 if (body) {
                     body.enable = true;
