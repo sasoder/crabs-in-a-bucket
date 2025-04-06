@@ -12,8 +12,6 @@ export class TextureManager {
     public generateAllTextures(): void {
         console.log("Generating all dynamic textures...");
         this.createTileTexture(BlockType.DIRT, 0xa07042);
-        this.createTileTexture(BlockType.STONE, 0x808080);
-        this.createTileTexture(BlockType.GOLD, 0xffd700);
         this.createCoinTexture();
         console.log("Dynamic texture generation complete.");
 
@@ -49,12 +47,6 @@ export class TextureManager {
         switch (type) {
             case BlockType.DIRT:
                 textureKey = "dirt_tile";
-                break;
-            case BlockType.STONE:
-                textureKey = "stone_tile";
-                break;
-            case BlockType.GOLD:
-                textureKey = "gold_tile";
                 break;
             default:
                 console.warn(

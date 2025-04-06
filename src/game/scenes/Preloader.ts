@@ -68,6 +68,7 @@ export default class Preloader extends Phaser.Scene {
         this.load.image("gold_tile", "assets/tiles/gold.png");
         this.load.image("coin", "assets/ui/coin.png");
         this.load.image("heart", "assets/ui/heart.png");
+        this.load.image("feather", "assets/ui/feather.png");
         this.load.spritesheet("player", "assets/entities/player.png", {
             frameWidth: 32, // Adjust frame size
             frameHeight: 32,
@@ -98,6 +99,7 @@ export default class Preloader extends Phaser.Scene {
 
         // Load sound effects
         this.load.audio("coin_collect", "assets/audio/coin_collect.wav");
+        this.load.audio("hit", "assets/audio/hit.wav");
 
         // ... add all other consumable images ...
     }

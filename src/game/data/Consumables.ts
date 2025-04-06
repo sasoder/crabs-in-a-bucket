@@ -21,7 +21,7 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         id: "GEODE",
         name: "Geode",
         description: "Crack it open and see what's inside.",
-        effect: "Wanna gamble?",
+        effect: "Earn a random amount of coins.",
         spriteKey: "coin",
         cost: 5,
     },
@@ -29,11 +29,18 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         id: "TNT",
         name: "TNT",
         description: "A bundle of TNT.",
-        effect: "Explodes",
+        effect: "Explodes and damages enemies in a small area.",
         spriteKey: "tnt",
         cost: 10,
     },
-    // Add more consumables here
+    BOULDER: {
+        id: "BOULDER",
+        name: "Boulder",
+        description: "A large rock.",
+        effect: "Place a boulder on the ground.",
+        spriteKey: "boulder",
+        cost: 3,
+    },
 };
 
 // Function to get a consumable by ID (optional but helpful)

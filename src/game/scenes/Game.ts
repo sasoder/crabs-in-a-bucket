@@ -3,11 +3,10 @@ import { EventBus } from "../EventBus";
 import { Player } from "../entities/Player";
 import { TerrainManager } from "../managers/TerrainManager";
 import { ShopManager } from "../managers/ShopManager";
-import { TILE_SIZE, BlockType } from "../constants";
+import { TILE_SIZE } from "../constants";
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
 import { Coin } from "../entities/Coin";
-import { GoldEntity } from "../entities/GoldEntity";
 import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
 import { EnemyManager } from "../managers/EnemyManager";
@@ -25,14 +24,13 @@ export default class Game extends Phaser.Scene {
     private initialPlayerY = 0;
 
     private textureManager!: TextureManager;
-    private particleManager!: ParticleManager;
+    public particleManager!: ParticleManager;
     public terrainManager!: TerrainManager;
     private shopManager!: ShopManager;
     private enemyManager?: EnemyManager;
-    private bouldersGroup!: Phaser.Physics.Arcade.Group;
-    private enemiesGroup!: Phaser.Physics.Arcade.Group;
-    private coinsGroup!: Phaser.Physics.Arcade.Group;
-    private goldEntitiesGroup!: Phaser.Physics.Arcade.Group;
+    public bouldersGroup!: Phaser.Physics.Arcade.Group;
+    public enemiesGroup!: Phaser.Physics.Arcade.Group;
+    public coinsGroup!: Phaser.Physics.Arcade.Group;
     private rowColliderGroup!: Phaser.Physics.Arcade.StaticGroup;
 
     // Background gradient properties
@@ -48,14 +46,6 @@ export default class Game extends Phaser.Scene {
     preload() {
         this.textureManager = new TextureManager(this);
         this.textureManager.generateAllTextures();
-        if (this.textures.exists("gold_tile")) {
-            this.textures.addBase64(
-                "gold_entity",
-                this.textures.getBase64("gold_tile")
-            );
-        } else {
-            console.warn("gold_tile texture missing for gold_entity.");
-        }
     }
 
     create() {
@@ -105,31 +95,24 @@ export default class Game extends Phaser.Scene {
             dragX: 80,
         });
 
-        this.goldEntitiesGroup = this.physics.add.group({
-            classType: GoldEntity,
-            runChildUpdate: true,
-            collideWorldBounds: false,
-            allowGravity: true,
-            gravityY: 250,
-            bounceY: 0.3,
-            dragX: 80,
-        });
-
         this.particleManager = new ParticleManager(this);
-        this.particleManager.initializeEmitters(["dirt_tile", "gold_entity"]);
+        this.particleManager.initializeEmitters(["dirt_tile", "enemy"]);
 
         this.terrainManager = new TerrainManager(
             this,
             this.bouldersGroup,
             this.enemiesGroup,
-            this.goldEntitiesGroup,
             this.coinsGroup,
             this.particleManager
         );
         this.shopManager = new ShopManager(this, this.registry);
 
         // Initialize enemy manager to handle spawning
-        this.enemyManager = new EnemyManager(this, this.enemiesGroup);
+        this.enemyManager = new EnemyManager(
+            this,
+            this.enemiesGroup,
+            this.bouldersGroup
+        );
 
         this.terrainManager.generateInitialChunk();
         this.rowColliderGroup = this.terrainManager.getRowColliderGroup();
@@ -146,78 +129,8 @@ export default class Game extends Phaser.Scene {
         this.player = new Player(this, spawnPoint.x, spawnPoint.y);
         this.player.setName("player");
 
-        this.physics.add.collider(this.player, this.rowColliderGroup);
-        this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup);
-        this.physics.add.collider(this.enemiesGroup, this.enemiesGroup);
-        this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
-        this.physics.add.collider(
-            this.goldEntitiesGroup,
-            this.rowColliderGroup
-        );
-        this.physics.add.collider(this.bouldersGroup, this.goldEntitiesGroup);
-        this.physics.add.collider(this.enemiesGroup, this.goldEntitiesGroup);
-
-        this.physics.add.overlap(
-            this.player,
-            this.enemiesGroup,
-            this
-                .handlePlayerEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            (playerGO, enemyGO) => {
-                return (
-                    playerGO instanceof Player &&
-                    enemyGO instanceof Enemy &&
-                    playerGO.active &&
-                    enemyGO.active
-                );
-            },
-            this
-        );
-        this.physics.add.collider(
-            this.player,
-            this.bouldersGroup,
-            (playerGO, boulderGO) => {
-                if (
-                    playerGO instanceof Player &&
-                    boulderGO instanceof Boulder &&
-                    playerGO.active &&
-                    boulderGO.active
-                ) {
-                    playerGO.handleBoulderCollision(boulderGO);
-                }
-            },
-            undefined,
-            this
-        );
-        this.physics.add.overlap(
-            this.player,
-            this.goldEntitiesGroup,
-            this
-                .handlePlayerGoldCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            (playerGO, goldGO) => {
-                return (
-                    playerGO instanceof Player &&
-                    goldGO instanceof GoldEntity &&
-                    playerGO.active &&
-                    goldGO.active
-                );
-            },
-            this
-        );
-        this.physics.add.overlap(
-            this.player,
-            this.coinsGroup,
-            this
-                .handlePlayerCoinCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
-            (playerGO, coinGO) => {
-                return (
-                    playerGO instanceof Player &&
-                    coinGO instanceof Coin &&
-                    playerGO.active &&
-                    coinGO.active
-                );
-            },
-            this
-        );
+        // Set up collision handling in a more declarative way
+        this.setupCollisions();
 
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.cameras.main.setZoom(2);
@@ -233,6 +146,118 @@ export default class Game extends Phaser.Scene {
         this.setupEventListeners();
 
         EventBus.emit("current-scene-ready", this);
+    }
+
+    /**
+     * Set up all collisions in one place for better organization
+     */
+    private setupCollisions(): void {
+        if (!this.player) return;
+
+        // Static collisions - just detecting collisions without custom handlers
+        this.physics.add.collider(this.player, this.rowColliderGroup);
+        this.physics.add.collider(this.bouldersGroup, this.rowColliderGroup);
+        this.physics.add.collider(this.enemiesGroup, this.rowColliderGroup);
+        this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
+
+        // Collisions between physics groups
+        this.physics.add.collider(this.bouldersGroup, this.bouldersGroup);
+
+        // Enemy-enemy collisions (make them turn around when they bump into each other)
+        this.physics.add.collider(
+            this.enemiesGroup,
+            this.enemiesGroup,
+            (obj1, obj2) => {
+                if (obj1 instanceof Enemy && obj1.active) {
+                    obj1.changeDirection();
+                }
+                if (obj2 instanceof Enemy && obj2.active) {
+                    obj2.changeDirection();
+                }
+            }
+        );
+
+        // Dynamic collisions with custom handlers
+        this.physics.add.overlap(
+            this.player,
+            this.enemiesGroup,
+            this
+                .handlePlayerEnemyCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            (object1, object2) => {
+                return (
+                    object1 instanceof Player &&
+                    object2 instanceof Enemy &&
+                    object1.active &&
+                    object2.active
+                );
+            },
+            this
+        );
+
+        this.physics.add.collider(
+            this.player,
+            this.bouldersGroup,
+            this
+                .handlePlayerBoulderCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            undefined,
+            this
+        );
+
+        this.physics.add.overlap(
+            this.player,
+            this.coinsGroup,
+            this
+                .handlePlayerCoinCollect as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            (object1, object2) => {
+                return (
+                    object1 instanceof Player &&
+                    object2 instanceof Coin &&
+                    object1.active &&
+                    object2.active
+                );
+            },
+            this
+        );
+
+        // Enemy-boulder collisions
+        this.physics.add.collider(
+            this.enemiesGroup,
+            this.bouldersGroup,
+            this
+                .handleEnemyBoulderCollision as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+            undefined,
+            this
+        );
+    }
+
+    private handlePlayerBoulderCollision(
+        object1:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        object2:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ): void {
+        // Swap objects if needed to ensure player is object1
+        let player: Player;
+        let boulder: Boulder;
+
+        if (object1 instanceof Player && object2 instanceof Boulder) {
+            player = object1;
+            boulder = object2;
+        } else if (object1 instanceof Boulder && object2 instanceof Player) {
+            player = object2;
+            boulder = object1;
+        } else {
+            return; // Neither combination matched
+        }
+
+        if (!player.active || !boulder.active) {
+            return;
+        }
+
+        // Call player's boulder collision handler
+        player.handleBoulderCollision(boulder);
     }
 
     private setupEventListeners() {
@@ -269,6 +294,8 @@ export default class Game extends Phaser.Scene {
         EventBus.off("player-damaged", undefined, this);
         EventBus.off("stats-changed", undefined, this);
         EventBus.off("dirt-row-cleared", undefined, this);
+        EventBus.off("player-dig", undefined, this);
+        EventBus.off("place-bomb", undefined, this);
 
         console.log("Game Scene Event Listeners Removed.");
     }
@@ -419,44 +446,6 @@ export default class Game extends Phaser.Scene {
         Coin.handlePlayerCoinCollect(this, this.coinsGroup, playerGO, coinGO);
     }
 
-    handlePlayerGoldCollect(
-        playerGO: Phaser.GameObjects.GameObject,
-        goldGO: Phaser.GameObjects.GameObject
-    ) {
-        if (
-            playerGO instanceof Player &&
-            goldGO instanceof GoldEntity &&
-            goldGO.active
-        ) {
-            // Logic similar to coin collection, but maybe different value/effect
-            const goldValue = 25; // Example value
-            const currentCoins = this.registry.get("coins") as number;
-            this.registry.set("coins", currentCoins + goldValue);
-
-            // Update total coins collected
-            let totalCoinsCollected =
-                (this.registry.get("totalCoinsCollected") as number) || 0;
-            totalCoinsCollected += goldValue;
-            this.registry.set("totalCoinsCollected", totalCoinsCollected);
-
-            EventBus.emit("stats-changed"); // Use the generic stats changed event
-
-            // Trigger particle effect for gold
-            if (this.particleManager) {
-                this.particleManager.triggerParticles(
-                    "gold_entity",
-                    goldGO.x,
-                    goldGO.y,
-                    { count: 10, speed: 150 }
-                );
-            }
-            // Play sound?
-            // this.sound.play('gold_collect_sound');
-
-            goldGO.destroy(); // Remove the gold entity
-        }
-    }
-
     gameOver() {
         console.log("GAME OVER triggered");
         if (!this.scene.isPaused("Game")) {
@@ -526,9 +515,6 @@ export default class Game extends Phaser.Scene {
         if (this.coinsGroup) {
             this.coinsGroup.destroy(true);
         }
-        if (this.goldEntitiesGroup) {
-            this.goldEntitiesGroup.destroy(true);
-        }
         if (this.rowColliderGroup) {
             this.rowColliderGroup.destroy(true);
         }
@@ -557,7 +543,6 @@ export default class Game extends Phaser.Scene {
         this.bouldersGroup = undefined!;
         this.enemiesGroup = undefined!;
         this.coinsGroup = undefined!;
-        this.goldEntitiesGroup = undefined!;
         this.rowColliderGroup = undefined!;
 
         console.log("Game scene shutdown complete.");
@@ -580,13 +565,36 @@ export default class Game extends Phaser.Scene {
             if (boulderTileY === clearedTileY - 1) {
             }
         });
-        this.goldEntitiesGroup.getChildren().forEach((go) => {
-            const gold = go as GoldEntity;
-            if (!gold.active || !gold.body) return;
-            const goldTileY = Math.floor(gold.y / this.TILE_SIZE);
-            if (goldTileY === clearedTileY - 1) {
-            }
-        });
+    }
+
+    /**
+     * Handle a boulder colliding with an enemy
+     */
+    handleEnemyBoulderCollision(
+        object1:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile,
+        object2:
+            | Phaser.Types.Physics.Arcade.GameObjectWithBody
+            | Phaser.Tilemaps.Tile
+    ) {
+        let enemy: Enemy | null = null;
+        let boulder: Boulder | null = null;
+
+        if (object1 instanceof Enemy && object2 instanceof Boulder) {
+            enemy = object1;
+            boulder = object2;
+        } else if (object1 instanceof Boulder && object2 instanceof Enemy) {
+            boulder = object1;
+            enemy = object2;
+        }
+
+        if (!enemy || !boulder || !enemy.active || !boulder.active) {
+            return;
+        }
+
+        // Delegate to enemy's collision handler
+        enemy.handleBoulderCollision(boulder);
     }
 }
 

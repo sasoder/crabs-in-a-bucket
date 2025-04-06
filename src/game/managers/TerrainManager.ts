@@ -6,9 +6,8 @@ import { Enemy } from "../entities/Enemy";
 // import { BlockConfig } from "../types/BlockConfig"; // Not needed
 import { EventBus } from "../EventBus";
 import { Coin } from "../entities/Coin";
-import { GoldEntity } from "../entities/GoldEntity";
 import Game from "../scenes/Game"; // Import Game scene type
-
+import { ParticleManager } from "./ParticleManager";
 // --- Remove BlockType and blockConfigs ---
 
 export class TerrainManager {
@@ -20,9 +19,8 @@ export class TerrainManager {
     private generatedRowsMaxY: number = 0;
     private bouldersGroup: Phaser.Physics.Arcade.Group;
     private enemiesGroup: Phaser.Physics.Arcade.Group;
-    private goldEntitiesGroup: Phaser.Physics.Arcade.Group;
     private coinsGroup?: Phaser.Physics.Arcade.Group;
-    private particleManager?: any; // Assuming ParticleManager exists
+    private particleManager?: ParticleManager; // Assuming ParticleManager exists
 
     // --- NEW: Row Management ---
     private rowColliderGroup: Phaser.Physics.Arcade.StaticGroup;
@@ -39,9 +37,8 @@ export class TerrainManager {
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
-    private boulderSpawnChanceBase = 0.005;
+    private boulderSpawnChanceBase = 0.01;
     private enemySpawnChanceBase = 0.008;
-    private goldEntitySpawnChanceBase = 0.004;
     private difficultyScaleFactor = 0.0003;
     // ---------------------------------------
 
@@ -57,14 +54,12 @@ export class TerrainManager {
         scene: Game, // Use specific Game type
         bouldersGroup: Phaser.Physics.Arcade.Group,
         enemiesGroup: Phaser.Physics.Arcade.Group,
-        goldEntitiesGroup: Phaser.Physics.Arcade.Group,
         coinsGroup?: Phaser.Physics.Arcade.Group,
         particleManager?: any
     ) {
         this.scene = scene;
         this.bouldersGroup = bouldersGroup;
         this.enemiesGroup = enemiesGroup;
-        this.goldEntitiesGroup = goldEntitiesGroup;
         this.coinsGroup = coinsGroup;
         this.particleManager = particleManager;
 
@@ -283,8 +278,6 @@ export class TerrainManager {
 
         const currentBoulderChance = this.boulderSpawnChanceBase + depthFactor;
         const currentEnemyChance = this.enemySpawnChanceBase + depthFactor;
-        const currentGoldChance =
-            this.goldEntitySpawnChanceBase + depthFactor * 0.8;
 
         // Calculate current enemy speed based on depth
         const currentEnemySpeed = Math.min(
@@ -302,16 +295,6 @@ export class TerrainManager {
                     spawnWorldY
                 );
                 this.bouldersGroup.add(boulder);
-            } else if (Math.random() < currentGoldChance) {
-                if (this.coinsGroup) {
-                    Coin.spawn(
-                        this.scene,
-                        this.coinsGroup,
-                        spawnWorldX,
-                        spawnWorldY,
-                        1
-                    );
-                }
             } else if (Math.random() < currentEnemyChance) {
                 const enemy = new Enemy(this.scene, spawnWorldX, spawnWorldY);
                 enemy.setSpeed(currentEnemySpeed);
@@ -392,22 +375,6 @@ export class TerrainManager {
             );
             if (distSq <= radiusSq) {
                 boulder.destroy();
-            }
-        });
-        // Damage Gold Entities
-        this.goldEntitiesGroup?.getChildren().forEach((goldGO) => {
-            const gold = goldGO as GoldEntity;
-            if (!gold.active) return;
-            const distSq = Phaser.Math.Distance.Squared(
-                explosionWorldX,
-                explosionWorldY,
-                gold.x,
-                gold.y
-            );
-            if (distSq <= radiusSq) {
-                // Maybe drop coins instead of just destroying?
-                this.spawnCoin(gold.x, gold.y, 5); // Example: drop 5 coins
-                gold.destroy();
             }
         });
     }

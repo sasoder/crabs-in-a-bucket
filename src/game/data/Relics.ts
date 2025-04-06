@@ -26,5 +26,13 @@ export const RELICS: Record<string, Relic> = {
         spriteKey: "coin",
         cost: 10,
     },
+    FEATHER_WEIGHT: {
+        id: "FEATHER_WEIGHT",
+        name: "Feather Weight",
+        effect: "Jump Height +10%",
+        description: "Your jump is higher than normal.",
+        spriteKey: "feather",
+        cost: 10,
+    },
 };
 

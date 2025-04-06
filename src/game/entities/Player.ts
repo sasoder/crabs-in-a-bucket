@@ -4,10 +4,8 @@ import { TILE_SIZE } from "../constants";
 import { EventBus } from "../EventBus"; // Import EventBus
 import { Boulder } from "./Boulder"; // Import Boulder type
 import { Enemy } from "./Enemy"; // Import Enemy type
-// --- Import Game scene type for type hinting ---
 import Game from "../scenes/Game";
 // --- Import new entity types ---
-import { GoldEntity } from "./GoldEntity";
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private moveSpeed = 80; // Adjust as needed
@@ -18,8 +16,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     public isInvulnerable = false;
     private invulnerabilityDuration = 500; // ms
     private invulnerabilityTimer?: Phaser.Time.TimerEvent;
-
-    private readonly VELOCITY_DAMAGE_THRESHOLD_Y = 50;
+    private recentBoulderCollisions: Map<Boulder, number> = new Map(); // Track recent boulder collisions
+    private boulderCollisionCooldown = 500; // ms between allowed boulder collisions
 
     // Scene reference with correct type
     private gameScene: Game;
@@ -34,10 +32,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setGravityY(300); // Adjust gravity
         this.body?.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.9); // Adjust collider size/offset
         this.body?.setOffset(TILE_SIZE * 0.1, TILE_SIZE * 0.05);
-
-        // Add animations if using a spritesheet
-        // this.anims.create({...});
-        // this.anims.play('idle');
     }
 
     private canJumpOrDig(): boolean {
@@ -90,9 +84,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const currentLives = this.scene.registry.get("lives") as number;
         const newLives = Math.max(0, currentLives - amount);
         this.scene.registry.set("lives", newLives);
+
         EventBus.emit("update-stats", { lives: newLives }); // Quick update
         EventBus.emit("player-damaged"); // For effects like flashing/sound
-
+        // Play hit sound
+        this.scene.sound.play("hit");
         console.log(`Player took damage! Lives remaining: ${newLives}`);
 
         if (newLives <= 0) {
@@ -135,41 +131,81 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     handleBoulderCollision(obstacle: Boulder) {
-        if (!this.body || !obstacle.body || !obstacle.active) {
+        if (!this.body || !obstacle.active || this.isInvulnerable) {
             return;
         }
 
+        // Check for recent collision with this boulder to prevent damage spam
+        const currentTime = this.scene.time.now;
+        const lastCollisionTime =
+            this.recentBoulderCollisions.get(obstacle) || 0;
+
+        if (currentTime - lastCollisionTime < this.boulderCollisionCooldown) {
+            // Recent collision with this boulder, don't process again
+            return;
+        }
+
+        // Record this collision
+        this.recentBoulderCollisions.set(obstacle, currentTime);
+
         const playerBody = this.body as Phaser.Physics.Arcade.Body;
-        const obstacleBody = obstacle.body as Phaser.Physics.Arcade.Body;
+        const obstacleVelocity = obstacle.getVelocity();
 
         const isLandingOnTop =
             playerBody.velocity.y > 0 &&
-            playerBody.bottom <= obstacleBody.top + 5;
+            playerBody.bottom <= obstacle.y - obstacle.height / 2 + 5;
 
         if (isLandingOnTop) {
+            // Allow the player to stand on top of boulders
+            this.setVelocityY(0);
             return;
         }
 
-        // Use obstacle's velocity - works for both Boulder and StoneEntity
-        const velocityYDiff =
-            playerBody.velocity.y - (obstacleBody.velocity.y || 0);
+        // Determine if player is pushing the boulder
+        const isPushingBoulder =
+            // Player must be moving toward the boulder
+            ((playerBody.velocity.x > 10 && this.x < obstacle.x) ||
+                (playerBody.velocity.x < -10 && this.x > obstacle.x)) &&
+            // And boulder should be slow or moving in same direction
+            (obstacle.getVelocityMagnitude() < 30 ||
+                (obstacle.getVelocity().x > 0 && playerBody.velocity.x > 0) ||
+                (obstacle.getVelocity().x < 0 && playerBody.velocity.x < 0));
 
-        // Damage condition (mostly if falling onto player from above)
-        const takesDamage =
-            obstacleBody.y < playerBody.y && // Obstacle is above player
-            !isLandingOnTop && // Player isn't landing cleanly on top
-            (Math.abs(obstacleBody.velocity.y) >
-                this.VELOCITY_DAMAGE_THRESHOLD_Y / 2 || // Obstacle falling fast
-                Math.abs(velocityYDiff) > this.VELOCITY_DAMAGE_THRESHOLD_Y); // Or significant relative velocity
+        if (isPushingBoulder) {
+            // Player is pushing - mark boulder as safe and apply physics naturally
+            obstacle.markAsSafeForPlayer();
+            return;
+        }
 
-        if (takesDamage) {
+        // Check if boulder is dangerous specifically for the player
+        if (obstacle.isDangerous(true)) {
+            // Boulder is moving fast enough to be dangerous to player
             console.log(
-                `Player hit by Boulder! Vel: Obstacle Y: ${obstacleBody.velocity.y.toFixed(
-                    1
-                )}, Diff Y: ${velocityYDiff.toFixed(1)}`
+                `Player hit by dangerous boulder! Velocity: ${obstacle
+                    .getVelocityMagnitude()
+                    .toFixed(1)}`
             );
             this.takeDamage();
+
+            // Apply knockback in opposite direction of boulder's movement
+            const knockbackX = this.x < obstacle.x ? -120 : 120;
+            const knockbackY = -100;
+            this.setVelocity(knockbackX, knockbackY);
+            return;
         }
+
+        // For non-dangerous boulders, check relative velocity for minor interactions
+        const velocityDiffX = Math.abs(
+            playerBody.velocity.x - obstacleVelocity.x
+        );
+
+        // Slight pushback from stationary or slow-moving boulders
+        const pushDirection = this.x < obstacle.x ? -1 : 1;
+        const pushForce = Math.max(15, velocityDiffX * 0.4);
+        this.setVelocityX(pushDirection * pushForce);
+
+        // Mark the boulder as safe for player (but still dangerous to enemies)
+        obstacle.markAsSafeForPlayer();
     }
 
     handleEnemyCollision(enemy: Enemy): boolean {
@@ -229,6 +265,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
+        // Clean up old collision records to prevent memory leaks
+        this.cleanupCollisionRecords(time);
+
         if (cursors.left.isDown) {
             this.setVelocityX(-this.moveSpeed);
             this.setFlipX(true); // Flip sprite left
@@ -262,12 +301,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
+    /**
+     * Clean up old collision records to prevent memory leaks
+     */
+    private cleanupCollisionRecords(currentTime: number): void {
+        for (const [
+            boulder,
+            timestamp,
+        ] of this.recentBoulderCollisions.entries()) {
+            if (currentTime - timestamp > this.boulderCollisionCooldown) {
+                this.recentBoulderCollisions.delete(boulder);
+            }
+        }
+    }
+
     // Ensure timer is cleaned up if the player is destroyed
     destroy(fromScene?: boolean) {
         if (this.invulnerabilityTimer) {
             this.invulnerabilityTimer.remove();
             this.invulnerabilityTimer = undefined;
         }
+        // Clear collision records
+        this.recentBoulderCollisions.clear();
         super.destroy(fromScene);
     }
 }
