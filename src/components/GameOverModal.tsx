@@ -184,7 +184,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                     "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                                 )}
                             >
-                                Try Again
+                                Try again
                             </Button>
                         </AlertDialogFooter>
                     </div>

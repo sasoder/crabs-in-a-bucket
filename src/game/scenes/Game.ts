@@ -763,6 +763,9 @@ export default class Game extends Phaser.Scene {
     }
 
     private handleRestartGame() {
+        // Call shutdown explicitly to clean up resources
+        this.shutdown();
+        // Then start a new game scene
         this.scene.start("Game");
     }
 

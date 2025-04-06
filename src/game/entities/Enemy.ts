@@ -148,26 +148,34 @@ export class Enemy extends BaseGameEntity {
     }
 
     destroy(fromScene?: boolean): void {
-        if (this.active && this.scene.scene.key === "Game") {
-            const enemyX = this.x; // Center for explosion
-            const enemyY = this.y;
-
+        if (this.active && this.scene && this.scene.scene.key === "Game") {
             const gameScene = this.scene as Game;
-            if (gameScene.particleManager) {
-                gameScene.particleManager.triggerParticles(
-                    "enemy", // Use the specific enemy particle key
-                    enemyX,
-                    enemyY,
-                    {
-                        count: 12,
-                        speed: 150,
-                        scale: 1,
-                        lifespan: 800,
-                    }
-                );
+            // Only trigger particles if the particleManager exists and the scene is still active
+            if (gameScene.particleManager && gameScene.scene.isActive()) {
+                try {
+                    gameScene.particleManager.triggerParticles(
+                        "enemy", // Use the specific enemy particle key
+                        this.x,
+                        this.y,
+                        {
+                            count: 12,
+                            speed: 150,
+                            scale: 1,
+                            lifespan: 800,
+                        }
+                    );
+                } catch (e) {
+                    // Silently catch errors during scene transitions
+                    console.warn(
+                        "Error triggering enemy particles during scene transition"
+                    );
+                }
             }
-            // Play destruction sound here consistently
-            this.gameScene.sound.play("hit", { volume: 0.5 }); // Or a dedicated enemy death sound
+
+            // Play destruction sound if scene is still active
+            if (this.gameScene && this.gameScene.sound) {
+                this.gameScene.sound.play("hit", { volume: 0.5 });
+            }
         }
 
         super.destroy(fromScene);
