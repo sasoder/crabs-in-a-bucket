@@ -57,7 +57,7 @@ export const RELICS: Record<string, Relic> = {
     },
     SLAYER: {
         id: "SLAYER",
-        name: "Skull of Slayer",
+        name: "Slayer Skull",
         effect: "Gain +2 coins for every enemy killed",
         description: "What's your Slayer level? My Slayer level is 99.",
         spriteKey: "slayer",

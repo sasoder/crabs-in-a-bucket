@@ -47,10 +47,9 @@ export default class Game extends Phaser.Scene {
 
     // Post processing FX
     private bloomFX?: Phaser.FX.Bloom;
-    private vignetteFX?: Phaser.FX.Vignette; // Added for Vignette
 
     // FX intensity control
-    private bloomIntensity = 0.3; // Increased intensity for softer focus effect
+    private bloomIntensity = 0.6; // Increased intensity for softer focus effect
 
     constructor() {
         super("Game");
@@ -181,7 +180,7 @@ export default class Game extends Phaser.Scene {
 
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
-        this.registry.set("relics", [] as string[]);
+        this.registry.set("relics", ["SLAYER"] as string[]);
         this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
@@ -658,30 +657,6 @@ export default class Game extends Phaser.Scene {
                 this.cameras.main.height / this.cameras.main.zoom;
             this.terrainManager.update(cameraBottomY);
         }
-
-        // --- Update Vignette to follow player (relative to camera center) ---
-        if (
-            this.vignetteFX &&
-            this.player &&
-            this.cameras.main.width > 0 &&
-            this.cameras.main.height > 0
-        ) {
-            // Calculate player's position relative to the camera viewport (0 to 1) using worldView
-            const worldView = this.cameras.main.worldView;
-            const playerViewportX =
-                (this.player.x - worldView.x) / worldView.width;
-            const playerViewportY =
-                (this.player.y - worldView.y) / worldView.height;
-
-            // Clamp values to keep the vignette center within the 0-1 range
-            const clampedX = Phaser.Math.Clamp(playerViewportX, 0, 1);
-            const clampedY = Phaser.Math.Clamp(playerViewportY, 0, 1);
-
-            // Update vignette center coordinates (Reverted Y-axis change)
-            this.vignetteFX.x = clampedX;
-            this.vignetteFX.y = 1 - clampedY;
-        }
-        // --- End Vignette Update ---
     }
 
     emitStatsUpdate(force = false) {
@@ -1111,10 +1086,6 @@ export default class Game extends Phaser.Scene {
             this.cameras.main.postFX.remove(this.bloomFX);
             this.bloomFX = undefined;
         }
-        if (this.vignetteFX) {
-            this.cameras.main.postFX.remove(this.vignetteFX);
-            this.vignetteFX = undefined;
-        }
 
         // Apply bloom effect
         this.bloomFX = this.cameras.main.postFX.addBloom(
@@ -1123,14 +1094,6 @@ export default class Game extends Phaser.Scene {
             1,
             1,
             this.bloomIntensity
-        );
-
-        // Apply vignette effect
-        this.vignetteFX = this.cameras.main.postFX.addVignette(
-            0.5,
-            0.5,
-            0.88,
-            0.5
         );
     }
 }

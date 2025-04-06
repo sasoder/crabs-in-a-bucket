@@ -126,7 +126,7 @@ export class Enemy extends BaseGameEntity {
             ).filter((relicId) => relicId === "SLAYER").length;
             const coinReward = slayerStacks * slayerBonusPerStack; // Calculate total bonus
 
-            if (coinReward > 0) {
+            for (let i = 0; i < coinReward; i++) {
                 Coin.spawn(
                     this.gameScene,
                     this.gameScene.coinsGroup,
