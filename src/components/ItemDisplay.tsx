@@ -140,7 +140,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                     "bg-[#5a3d2b] border-[#a0704f] text-amber-100" // Chest colors
                 )}
                 style={{
-                    filter: "drop-shadow(0px 2px 15px rgba(0,0,0,0.5))",
+                    filter: "drop-shadow(0px 0px 15px rgba(0,0,0,0.5))",
                 }}
             >
                 <p className="text-2xl mb-1 font-bold text-white">

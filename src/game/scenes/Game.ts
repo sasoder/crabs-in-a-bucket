@@ -50,11 +50,9 @@ export default class Game extends Phaser.Scene {
     // Post processing FX
     private bloomFX?: Phaser.FX.Bloom;
     private vignetteFX?: Phaser.FX.Vignette; // Added for Vignette
-    private glowFX?: Phaser.GameObjects.Components.FX; // Keep for player glow
-    private fxTimer?: Phaser.Time.TimerEvent; // Timer for reapplying effects
 
     // FX intensity control
-    private bloomIntensity = 0.7; // Increased intensity for softer focus effect
+    private bloomIntensity = 0.3; // Increased intensity for softer focus effect
 
     constructor() {
         super("Game");
@@ -185,8 +183,8 @@ export default class Game extends Phaser.Scene {
         this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [
             "HEART_ROOT",
-            "HEART_ROOT",
-            "HEART_ROOT",
+            "GEODE",
+            "TNT",
         ] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
@@ -402,10 +400,6 @@ export default class Game extends Phaser.Scene {
 
         if (isVerticalCollision) {
             // Enemy is landing on or standing on boulder - NEVER damage the enemy
-            // console.log("Enemy on boulder - NO DAMAGE");
-
-            // If enemy is moving significantly horizontally but boulder is mostly still,
-            // We might need to change direction if they "walk onto" a stationary boulder
             if (
                 Math.abs(enemyBody.velocity.x) > 20 &&
                 Math.abs(boulderBody.velocity.x) < 10
@@ -488,7 +482,6 @@ export default class Game extends Phaser.Scene {
         if (isFalling && isAboveSpike && isAlignedWithSpike) {
             // Only damage if we haven't just damaged this enemy (prevent multiple damage ticks)
             if (!enemy.getData("recentlyDamagedBySpike")) {
-                console.log("Enemy landed on spike - TAKING DAMAGE");
                 enemy.takeDamage(spike.damageAmount);
 
                 // Set a flag to prevent damage spam
@@ -531,10 +524,6 @@ export default class Game extends Phaser.Scene {
             | Phaser.Types.Physics.Arcade.GameObjectWithBody
             | Phaser.Tilemaps.Tile
     ) {
-        // --- ADDED LOGGING ---
-        console.log(`Collision: Boulder Spike at time ${this.time.now}`);
-        // --- END LOGGING ---
-
         if (!(boulderGO instanceof Boulder) || !(spikeGO instanceof Spike))
             return;
         if (!boulderGO.active || !spikeGO.active) return;
@@ -569,10 +558,6 @@ export default class Game extends Phaser.Scene {
         );
         EventBus.on("use-consumable-requested", this.useConsumable, this);
         EventBus.on("relics-changed", this.setupHeartStoneTimer, this);
-
-        console.log(
-            "Game Scene Event Listeners Setup (including relic changes)."
-        );
     }
 
     private removeEventListeners() {
@@ -588,22 +573,13 @@ export default class Game extends Phaser.Scene {
         EventBus.off("place-bomb", undefined, this);
         EventBus.off("use-consumable-requested", this.useConsumable, this);
         EventBus.off("relics-changed", this.setupHeartStoneTimer, this);
-
-        console.log(
-            "Game Scene Event Listeners Removed (including relic changes)."
-        );
     }
 
     resumeGame() {
-        console.log("Resuming game scene...");
         if (this.scene.isPaused("Game")) {
             this.scene.resume();
             this.input.keyboard?.resetKeys();
             this.input.keyboard?.enableGlobalCapture();
-        } else {
-            console.warn(
-                "Attempted to resume game scene, but it wasn't paused."
-            );
         }
     }
 
@@ -675,9 +651,6 @@ export default class Game extends Phaser.Scene {
             this.maxDepthReached > 0 &&
             this.maxDepthReached >= this.nextShopDepthThreshold
         ) {
-            console.log(
-                `Shop threshold reached at depth ${this.maxDepthReached}`
-            );
             this.shopManager.openShop(this.maxDepthReached);
             this.nextShopDepthThreshold += 10;
         }
@@ -753,17 +726,6 @@ export default class Game extends Phaser.Scene {
             return;
         }
 
-        // Add debug logging to help diagnose the issue
-        const playerBody = playerGO.body as Phaser.Physics.Arcade.Body;
-        const enemyBody = enemyGO.body as Phaser.Physics.Arcade.Body;
-        console.log(`Collision detected:
-            playerY: ${playerBody.bottom}, enemyY: ${enemyBody.top}
-            playerVelY: ${playerBody.velocity.y}
-            isStomping: ${
-                playerBody.velocity.y > 0 &&
-                playerBody.bottom < enemyBody.top + 10
-            }`);
-
         // Delegate to player, which should check for stomp vs regular collision
         playerGO.handleEnemyCollision(enemyGO as Enemy);
     }
@@ -781,7 +743,6 @@ export default class Game extends Phaser.Scene {
     }
 
     gameOver() {
-        console.log("GAME OVER triggered");
         if (!this.scene.isPaused("Game")) {
             this.scene.pause();
             this.input.keyboard?.disableGlobalCapture();
@@ -802,7 +763,6 @@ export default class Game extends Phaser.Scene {
         rerollCost: number;
     }) {
         if (!this.scene.isPaused("Game")) {
-            console.log("Pausing game for shop...");
             this.scene.pause();
             this.input.keyboard?.disableGlobalCapture();
             this.input.keyboard?.resetKeys();
@@ -821,18 +781,14 @@ export default class Game extends Phaser.Scene {
     }
 
     private handleRestartGame() {
-        console.log("Restarting game from GameOver modal...");
         this.scene.start("Game");
     }
 
     shutdown() {
-        console.log("Game scene shutting down...");
-
         // --- Clear Heart Stone Timer ---
         if (this.heartStoneTimer) {
             this.heartStoneTimer.remove();
             this.heartStoneTimer = undefined;
-            console.log("Heart Stone timer cleared.");
         }
         // --- End Clear Heart Stone Timer ---
 
@@ -871,8 +827,6 @@ export default class Game extends Phaser.Scene {
             spikesGroup.destroy(true);
         }
 
-        console.log("Destroyed physics groups.");
-
         this.cameras.main.stopFollow();
         this.cameras.main.resetFX();
 
@@ -901,8 +855,6 @@ export default class Game extends Phaser.Scene {
         this.rowColliderGroup = undefined!;
 
         this.heartStoneTimer = undefined; // Ensure property is cleared
-
-        console.log("Game scene shutdown complete.");
 
         // Clean up post-processing effects
         // Reset camera effects - check if bloomFX exists before removing
@@ -1011,7 +963,6 @@ export default class Game extends Phaser.Scene {
             ...(this.registry.get("consumables") as string[]),
         ];
         if (currentConsumables.length === 0) {
-            console.log("No consumables to use.");
             return;
         }
 
@@ -1027,10 +978,6 @@ export default class Game extends Phaser.Scene {
             EventBus.emit("stats-changed"); // Update UI
             return;
         }
-
-        console.log(
-            `Attempting to use newest consumable: ${consumableData.name}`
-        );
         let usedSuccessfully = false;
 
         // --- Apply Consumable Effects ---
@@ -1099,15 +1046,8 @@ export default class Game extends Phaser.Scene {
         if (usedSuccessfully) {
             currentConsumables.pop(); // Remove the LAST item
             this.registry.set("consumables", currentConsumables);
-            console.log(
-                `Used ${consumableData.name}. Remaining:`,
-                currentConsumables
-            );
             EventBus.emit("stats-changed"); // Update UI after using consumable
         } else {
-            console.log(
-                `Failed to use ${consumableData.name} (e.g., already at max health).`
-            );
         }
     }
 
@@ -1119,7 +1059,6 @@ export default class Game extends Phaser.Scene {
         if (this.heartStoneTimer) {
             this.heartStoneTimer.remove();
             this.heartStoneTimer = undefined;
-            console.log("Cleared existing Heart Stone timer.");
         }
 
         // Check if the player has any Heart Stone relics
@@ -1129,9 +1068,6 @@ export default class Game extends Phaser.Scene {
         ).length;
 
         if (heartStoneCount > 0) {
-            console.log(
-                `Setting up Heart Stone timer for ${heartStoneCount} relic(s).`
-            );
             // Create a new looping timer
             this.heartStoneTimer = this.time.addEvent({
                 delay: 60000, // 60 seconds
@@ -1139,8 +1075,6 @@ export default class Game extends Phaser.Scene {
                 callbackScope: this,
                 loop: true,
             });
-        } else {
-            console.log("No Heart Stone relics found, timer not started.");
         }
     }
 
@@ -1149,7 +1083,6 @@ export default class Game extends Phaser.Scene {
      */
     private onHeartStoneTick(): void {
         if (!this.player || !this.player.active) {
-            console.log("Heart Stone Tick: Player inactive, skipping heal.");
             return;
         }
 
@@ -1159,9 +1092,6 @@ export default class Game extends Phaser.Scene {
         ).length;
 
         if (heartStoneCount > 0) {
-            console.log(
-                `Heart Stone Tick: Healing player for ${heartStoneCount} HP.`
-            );
             this.player.heal(heartStoneCount); // Heal amount based on relic count
         } else {
             // This case should theoretically not happen if the timer is managed correctly,
@@ -1201,11 +1131,9 @@ export default class Game extends Phaser.Scene {
         this.vignetteFX = this.cameras.main.postFX.addVignette(
             0.5,
             0.5,
-            0.85,
+            0.8,
             0.5
         );
-
-        console.log("Post-processing effects applied");
     }
 }
 

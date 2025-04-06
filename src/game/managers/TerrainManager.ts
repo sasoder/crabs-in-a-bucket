@@ -25,13 +25,19 @@ export class TerrainManager {
     private coinsGroup?: Phaser.Physics.Arcade.Group;
     private particleManager?: ParticleManager; // Assuming ParticleManager exists
 
-    // --- NEW: Row Management ---
+    // --- REVISED: Row Management ---
     private rowColliderGroup: Phaser.Physics.Arcade.StaticGroup;
-    private rowVisualsGroup: Phaser.GameObjects.Group;
+    // Remove TileSprite related properties
+    // private rowVisualsGroup: Phaser.GameObjects.Group;
     private rowColliders: Map<number, Phaser.GameObjects.GameObject> =
         new Map();
-    private rowVisuals: Map<number, Phaser.GameObjects.GameObject> = new Map();
-    // --------------------------
+    // private rowVisuals: Map<number, Phaser.GameObjects.GameObject> = new Map();
+
+    // NEW: For individual tile visuals
+    private individualTileVisualsGroup: Phaser.GameObjects.Group;
+    private individualTileVisuals: Map<number, Phaser.GameObjects.Image[]> =
+        new Map();
+    // -----------------------------
 
     // Map dimensions (adjust as needed)
     private mapWidthTiles = 25; // Width in terms of tiles/columns
@@ -40,11 +46,12 @@ export class TerrainManager {
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
 
     // --- Generation Parameters (Tunable) ---
-    private boulderSpawnChanceBase = 0.01;
+    private boulderSpawnChanceBase = 0.025;
     private enemySpawnChanceBase = 0.005;
     private spikeSpawnChanceBase = 0.03; // Add spike spawn chance
     private coinSpawnChanceBase = 0.07;
     private difficultyScaleFactor = 0.008;
+    private specialTileChance = 0.05; // Chance for gold/stone tile (per tile)
     // ---------------------------------------
 
     // --- Initial Platform ---
@@ -71,23 +78,22 @@ export class TerrainManager {
         // Initialize spikesGroup as a StaticGroup
         this.spikesGroup = this.scene.physics.add.staticGroup({
             classType: Spike,
-            // No need for physics properties here for static group
         });
 
         // --- Initialize new groups ---
         this.rowColliderGroup = this.scene.physics.add.staticGroup();
-        this.rowVisualsGroup = this.scene.add.group();
+        // Remove rowVisualsGroup initialization
+        // this.rowVisualsGroup = this.scene.add.group();
 
-        // Set the depth of the rowVisualsGroup to be behind entities
-        this.rowVisualsGroup.setDepth(0);
+        // NEW: Initialize individual tile visuals group
+        this.individualTileVisualsGroup = this.scene.add.group();
+        this.individualTileVisualsGroup.setDepth(0); // Keep tiles behind entities
         // -----------------------------
 
         // --- Remove tilemap and layer creation ---
 
         // Set initial generation point (below clear rows)
         this.generatedRowsMaxY = this.initialClearRows * TILE_SIZE;
-
-        console.log("TerrainManager initialized for row-based system.");
 
         // Remove collision between spikes and row colliders (spikes are static)
     }
@@ -124,9 +130,6 @@ export class TerrainManager {
 
     public generateInitialChunk(): void {
         // Generate the initial solid dirt platform first
-        console.log(
-            `Generating initial platform at row Y=${this.initialPlatformRows}`
-        );
         const platformWorldY = this.initialPlatformRows * TILE_SIZE;
 
         // First create all row colliders/visuals
@@ -137,18 +140,12 @@ export class TerrainManager {
         const startY = (this.initialPlatformRows + 1) * TILE_SIZE;
         const endY = startY + initialWorldDepthRows * TILE_SIZE;
 
-        console.log(
-            `Generating initial chunk colliders from Y=${startY} to Y=${endY}`
-        );
         for (let y = startY; y < endY; y += TILE_SIZE) {
             this.generateRowOnly(y);
         }
 
         // Then spawn entities on all the created rows
-        console.log(
-            `Spawning entities on initial chunk from Y=${startY} to Y=${endY}`
-        );
-        // Including platform row
+        // Including platform row (but spawnEntitiesOnRow prevents spawns on platform)
         this.spawnEntitiesOnRow(platformWorldY);
         for (let y = startY; y < endY; y += TILE_SIZE) {
             this.spawnEntitiesOnRow(y);
@@ -167,10 +164,6 @@ export class TerrainManager {
             const chunkSize = 20 * TILE_SIZE; // 20 rows per chunk
             const endY = startY + chunkSize;
 
-            console.log(
-                `Generating chunk of 20 rows from Y=${startY} to Y=${endY}`
-            );
-
             // First, generate ALL row colliders in the chunk
             for (let y = startY; y < endY; y += TILE_SIZE) {
                 if (y >= (this.initialPlatformRows + 1) * TILE_SIZE) {
@@ -188,9 +181,6 @@ export class TerrainManager {
             }
 
             this.generatedRowsMaxY = endY;
-            console.log(
-                `Chunk generation complete. New generatedRowsMaxY=${this.generatedRowsMaxY}`
-            );
         }
     }
 
@@ -204,25 +194,22 @@ export class TerrainManager {
         const targetRowWorldY = playerRowYBelow * TILE_SIZE;
         const targetTileY = playerRowYBelow; // Row index to clear
 
-        console.log(
-            `Attempting to clear row BELOW player at tileY=${targetTileY} (WorldY ~${targetRowWorldY})`
-        );
-        console.log(
-            `Also clearing spikes from row ABOVE at tileY=${playerCurrentRow}`
-        );
-
         const collider = this.rowColliders.get(targetTileY);
-        const visual = this.rowVisuals.get(targetTileY);
+        // Change to check individualTileVisuals map
+        const visuals = this.individualTileVisuals.get(targetTileY);
 
         if (collider) {
-            console.log(`Clearing collider for row ${targetTileY}`);
-            this.rowColliderGroup.remove(collider, true, true); // Remove from group, destroy GO, destroy body
+            // Remove collider
+            this.rowColliderGroup.remove(collider, true, true);
             this.rowColliders.delete(targetTileY);
 
-            if (visual) {
-                console.log(`Clearing visual for row ${targetTileY}`);
-                this.rowVisualsGroup.remove(visual, true); // Remove from group, destroy GO
-                this.rowVisuals.delete(targetTileY);
+            // Remove individual visuals
+            if (visuals) {
+                visuals.forEach((tileImage) => {
+                    // Remove from group first to prevent errors if group is destroyed later
+                    this.individualTileVisualsGroup.remove(tileImage, true); // Destroy GameObject
+                });
+                this.individualTileVisuals.delete(targetTileY); // Clear the entry from the map
             }
 
             // SUPER SIMPLE APPROACH: Just clear all spikes on row ABOVE the target row
@@ -243,9 +230,6 @@ export class TerrainManager {
                         spike.y > rowAboveWorldY &&
                         spike.y < rowAboveWorldY + TILE_SIZE * 1.2
                     ) {
-                        console.log(
-                            `Destroying spike at Y=${spike.y}, on row above target`
-                        );
                         spike.takeDamage(1);
                     }
                 });
@@ -269,9 +253,6 @@ export class TerrainManager {
             EventBus.emit("dirt-row-cleared", { tileY: targetTileY });
             return true; // Row cleared
         } else {
-            console.log(
-                `No collider found for row ${targetTileY}, cannot clear.`
-            );
             return false; // No row to clear
         }
     }
@@ -286,7 +267,7 @@ export class TerrainManager {
     }
 
     /**
-     * Generates just the row collider and visual without any entities.
+     * Generates just the row collider and INDIVIDUAL tile visuals without entities.
      * @param worldY The world Y coordinate of the top of the row to generate.
      * @param forceGenerate Skip checks, used for initial platform.
      */
@@ -298,7 +279,7 @@ export class TerrainManager {
         if (
             tileY < 0 ||
             tileY >= this.mapHeightTiles ||
-            this.rowColliders.has(tileY)
+            this.rowColliders.has(tileY) // Check collider map, as visuals are now separate
         ) {
             return; // Out of bounds or already generated
         }
@@ -326,17 +307,35 @@ export class TerrainManager {
         this.rowColliderGroup.add(collider);
         this.rowColliders.set(tileY, collider);
 
-        // Step 3: Create Row Visual (TileSprite)
-        const visual = this.scene.add.tileSprite(
-            this.mapWidthPixels / 2, // Center X
-            worldY + TILE_SIZE / 2 - 2, // Center Y
-            this.mapWidthPixels, // Full width
-            TILE_SIZE, // Full height
-            "dirt_tile" // Use the dirt texture
-        );
-        visual.setDepth(0); // Set a low depth value for the visual row
-        this.rowVisualsGroup.add(visual);
-        this.rowVisuals.set(tileY, visual);
+        // Step 3: Create Individual Tile Visuals
+        const rowImages: Phaser.GameObjects.Image[] = []; // Array to hold images for this row
+        for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
+            // Determine texture for this specific tile
+            let textureKey = "dirt_tile";
+            // Force dirt for the initial platform row
+            if (!forceGenerate) {
+                const randomChance = Math.random();
+                if (randomChance < this.specialTileChance) {
+                    textureKey =
+                        Math.random() < 0.5 ? "gold_tile" : "stone_tile";
+                }
+            }
+
+            const visualX = tileX * TILE_SIZE + TILE_SIZE / 2;
+            const visualY = worldY + TILE_SIZE / 2;
+
+            const tileImage = this.scene.add.image(
+                visualX,
+                visualY,
+                textureKey
+            );
+            tileImage.setDepth(0); // Keep behind entities
+
+            this.individualTileVisualsGroup.add(tileImage); // Add to the main group
+            rowImages.push(tileImage); // Add to this row's specific array
+        }
+        // Store the array of images for this row
+        this.individualTileVisuals.set(tileY, rowImages);
     }
 
     /**
@@ -348,9 +347,6 @@ export class TerrainManager {
 
         // Check that the row exists
         if (!this.rowColliders.has(tileY)) {
-            console.error(
-                `Tried to spawn entities on nonexistent row at Y=${worldY} (tileY=${tileY})`
-            );
             return;
         }
 
@@ -378,19 +374,6 @@ export class TerrainManager {
         const colliderHeight = TILE_SIZE * 0.1;
         const spawnSurfaceY = worldY + colliderYOffset - colliderHeight / 2; // Surface is top of collider
         const spikeSpawnY = worldY; // Adjust spike spawn Y for top of row
-
-        // Log for debugging
-        if (depthInRows > 15) {
-            console.log(
-                `Spawning entities on row tileY=${tileY} (worldY=${worldY}) at depth ${depthInRows}`
-            );
-            console.log(
-                `Chances - Boulder: ${currentBoulderChance.toFixed(3)}, ` +
-                    `Enemy: ${currentEnemyChance.toFixed(3)}, ` +
-                    `Spike: ${currentSpikeChance.toFixed(3)}, ` +
-                    `Coin: ${currentCoinChance.toFixed(3)}`
-            );
-        }
 
         // Iterate through each tile position in the row
         for (let tileX = 0; tileX < this.mapWidthTiles; tileX++) {
@@ -458,25 +441,9 @@ export class TerrainManager {
                 if (spaceOccupied) break; // Stop checking groups if occupied
             }
 
-            // Skip this tile position if already occupied by Boulder, Enemy, or Spike
-            if (spaceOccupied) {
-                // Log only at deeper levels to avoid spam
-                if (depthInRows > 15) {
-                    console.log(
-                        `[Depth ${depthInRows}, TileX ${tileX}] Space occupied by ${occupyingEntityInfo}, skipping further checks.`
-                    );
-                }
-                continue; // Skip to next tile position
-            }
-
             // Check Boulder
             const tryBoulder = Math.random() < currentBoulderChance;
             if (tryBoulder) {
-                // Log spawn attempt
-                if (depthInRows > 15)
-                    console.log(
-                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Boulder spawn...`
-                    );
                 try {
                     const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
                     const boulder = new Boulder(
@@ -489,13 +456,7 @@ export class TerrainManager {
                         boulder.setDepth(10);
                         this.bouldersGroup.add(boulder);
                         // Log successful spawn
-                        if (depthInRows > 15)
-                            console.log(
-                                ` -> Spawned Boulder at (${(
-                                    spawnWorldX -
-                                    TILE_SIZE / 2
-                                ).toFixed(1)}, ${spawnY.toFixed(1)})`
-                            );
+
                         // We continue immediately after spawning a boulder
                     }
                 } catch (error) {
@@ -507,11 +468,6 @@ export class TerrainManager {
             // Check Enemy - only if boulder didn't spawn
             const tryEnemy = Math.random() < currentEnemyChance;
             if (tryEnemy) {
-                // Log spawn attempt
-                if (depthInRows > 15)
-                    console.log(
-                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Enemy spawn...`
-                    );
                 try {
                     const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
                     const enemy = new Enemy(
@@ -524,14 +480,6 @@ export class TerrainManager {
                         enemy.setDepth(10);
                         enemy.setSpeed(currentEnemySpeed);
                         this.enemiesGroup.add(enemy);
-                        // Log successful spawn
-                        if (depthInRows > 15)
-                            console.log(
-                                ` -> Spawned Enemy at (${(
-                                    spawnWorldX -
-                                    TILE_SIZE / 2
-                                ).toFixed(1)}, ${spawnY.toFixed(1)})`
-                            );
                     }
                 } catch (error) {
                     console.error("Error spawning enemy:", error);
@@ -543,10 +491,7 @@ export class TerrainManager {
             const trySpike = Math.random() < currentSpikeChance;
             if (trySpike && this.spikesGroup) {
                 // Log spawn attempt
-                if (depthInRows > 15)
-                    console.log(
-                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Spike spawn...`
-                    );
+
                 try {
                     const spike = new Spike(
                         this.scene,
@@ -557,16 +502,6 @@ export class TerrainManager {
                     if (spike) {
                         spike.setDepth(10);
                         this.spikesGroup.add(spike);
-                        // Log successful spawn
-                        if (depthInRows > 15)
-                            console.log(
-                                ` -> Spawned Spike at (${(
-                                    spawnWorldX -
-                                    TILE_SIZE / 2
-                                ).toFixed(1)}, ${(spikeSpawnY + 10).toFixed(
-                                    1
-                                )})`
-                            );
                     }
                 } catch (error) {
                     console.error("Error spawning spike:", error);
@@ -576,11 +511,6 @@ export class TerrainManager {
 
             const tryCoin = Math.random() < currentCoinChance;
             if (tryCoin && this.coinsGroup) {
-                // Log spawn attempt
-                if (depthInRows > 15)
-                    console.log(
-                        `[Depth ${depthInRows}, TileX ${tileX}] Attempting Coin spawn...`
-                    );
                 try {
                     const spawnY = spawnSurfaceY - TILE_SIZE / 2 - 2; // Added - 2 buffer
                     Coin.spawn(
@@ -589,14 +519,6 @@ export class TerrainManager {
                         spawnWorldX - TILE_SIZE / 2, // Center horizontally
                         spawnY // Position slightly above the surface
                     );
-                    // Log successful spawn
-                    if (depthInRows > 15)
-                        console.log(
-                            ` -> Spawned Coin at (${(
-                                spawnWorldX -
-                                TILE_SIZE / 2
-                            ).toFixed(1)}, ${spawnY.toFixed(1)})`
-                        );
 
                     // Ensure coins have proper depth
                     this.coinsGroup.setDepth(10);
@@ -614,13 +536,6 @@ export class TerrainManager {
         worldY: number;
         radius: number;
     }) {
-        console.log(
-            "Handling explosion at:",
-            data.worldX,
-            data.worldY,
-            "Radius:",
-            data.radius
-        );
         const radiusSq = data.radius * data.radius;
         const centerTileX = Math.floor(data.worldX / TILE_SIZE);
         const centerTileY = Math.floor(data.worldY / TILE_SIZE);
@@ -704,12 +619,16 @@ export class TerrainManager {
     // Optional: Add cleanup method
     public destroy() {
         this.rowColliders.clear();
-        this.rowVisuals.clear();
-        this.rowColliderGroup.destroy(true); // Destroy children
-        this.rowVisualsGroup.destroy(true); // Destroy children
-        // Destroy spike group too
+        this.individualTileVisuals.clear(); // Clear the new map
+
+        this.rowColliderGroup.destroy(true);
+        this.individualTileVisualsGroup.destroy(true); // Destroy the new group
         this.spikesGroup?.destroy(true);
-        console.log("TerrainManager destroyed.");
+
+        // Optional: Clear other groups if managed exclusively here
+        // this.bouldersGroup.destroy(true); // Usually managed by the Scene
+        // this.enemiesGroup.destroy(true);  // Usually managed by the Scene
+        // this.coinsGroup?.destroy(true);    // Usually managed by the Scene
     }
 
     /**

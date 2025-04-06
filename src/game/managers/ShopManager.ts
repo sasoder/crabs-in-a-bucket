@@ -4,6 +4,8 @@ import { EventBus } from "../EventBus";
 import { RELICS } from "../data/Relics";
 import { CONSUMABLES } from "../data/Consumables";
 
+const MAX_CONSUMABLES = 3; // Define max consumables capacity globally or as a constant
+
 export class ShopManager {
     private scene: Phaser.Scene;
     private registry: Phaser.Data.DataManager;
@@ -44,13 +46,9 @@ export class ShopManager {
         this.currentShopConsumableIds = shopSelection.consumableIds;
         // Fixed reroll cost
         this.currentRerollCost = 5;
-
-        console.log(
-            `Opening Shop at Depth ${this.maxDepthReached}. Items:`,
-            shopSelection,
-            `Reroll Cost:`,
-            this.currentRerollCost
-        );
+        const inventoryIsFull =
+            (this.registry.get("consumables") as string[]).length >=
+            MAX_CONSUMABLES;
 
         // Emit event for UI to display the shop
         EventBus.emit("open-shop-requested", {
@@ -58,6 +56,7 @@ export class ShopManager {
             relicIds: this.currentShopRelicIds,
             consumableIds: this.currentShopConsumableIds,
             rerollCost: this.currentRerollCost,
+            inventoryIsFull: inventoryIsFull, // Add inventory status
         });
     }
 
@@ -102,24 +101,21 @@ export class ShopManager {
             this.currentShopRelicIds = shopSelection.relicIds;
             this.currentShopConsumableIds = shopSelection.consumableIds;
 
-            console.log(
-                "Rerolling Shop. New Items:",
-                shopSelection,
-                "New Cost:",
-                this.currentRerollCost
-            );
+            const inventoryIsFull =
+                (this.registry.get("consumables") as string[]).length >=
+                MAX_CONSUMABLES;
 
             // Emit event for UI to update
             EventBus.emit("update-shop-items", {
                 relicIds: this.currentShopRelicIds,
                 consumableIds: this.currentShopConsumableIds,
                 rerollCost: this.currentRerollCost,
+                inventoryIsFull: inventoryIsFull, // Add inventory status
             });
 
             // Notify Game scene to update stats display
             EventBus.emit("stats-changed");
         } else {
-            console.log("Not enough coins to reroll.");
             EventBus.emit("show-notification", "Not enough coins!");
         }
     }
@@ -128,7 +124,6 @@ export class ShopManager {
         itemId: string;
         itemType: "relic" | "consumable";
     }) {
-        console.log(`Attempting to purchase ${data.itemType}: ${data.itemId}`);
         const currentCoins = this.registry.get("coins") as number;
         let itemCost = 0;
         let canPurchase = false;
@@ -168,7 +163,6 @@ export class ShopManager {
             const currentConsumables = this.registry.get(
                 "consumables"
             ) as string[];
-            const MAX_CONSUMABLES = 3; // Define max consumables capacity
 
             if (currentConsumables.length >= MAX_CONSUMABLES) {
                 purchaseMessage = "Consumable inventory full!";
@@ -189,7 +183,6 @@ export class ShopManager {
             }
         }
 
-        console.log(purchaseMessage);
         EventBus.emit("show-notification", notification);
 
         if (canPurchase) {
@@ -209,8 +202,6 @@ export class ShopManager {
         const relic = RELICS[relicId];
         if (!relic) return;
 
-        console.log(`Applying effect for Relic: ${relic.name}`);
-
         // Example: Symbiotic Worm
         if (relicId === "symbiotic-worm") {
             const currentMaxLives = this.registry.get("maxLives") || 3;
@@ -220,9 +211,6 @@ export class ShopManager {
             this.registry.set(
                 "lives",
                 Math.min(currentLives + 1, currentMaxLives + 1)
-            );
-            console.log(
-                "Applied Symbiotic Worm effect: Max Lives +1, Healed +1 if needed"
             );
             // Notify Game scene to update stats display
             EventBus.emit("stats-changed");

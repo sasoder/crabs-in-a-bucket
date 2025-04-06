@@ -50,6 +50,7 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
                             transform: `translate(${xOffset}px, ${yOffset}px)`,
                             // Higher index (top of stack) gets higher z-index
                             zIndex: index,
+                            filter: "drop-shadow(0px 0px 10px rgba(0,0,0,0.9))",
                         }}
                     >
                         <ItemDisplay

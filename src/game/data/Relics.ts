@@ -13,7 +13,7 @@ export const RELICS: Record<string, Relic> = {
         id: "STEEL_BOOTS",
         name: "Steel Boots",
         effect: "Jump on enemies to damage them",
-        description: "A pair of steel-toed boots, very durable and protective.",
+        description: "A pair of steel boots, very durable and protective.",
         spriteKey: "steel_boots",
         cost: 25,
         allowDuplicates: false,

@@ -95,7 +95,6 @@ export class Enemy extends BaseGameEntity {
             this.active &&
             this.scene.time.now < this.spawnTime + this.spawnGracePeriod
         ) {
-            // console.log("Enemy ignoring damage during spawn grace period");
             return; // Exit early, no damage taken
         }
         // --- End grace period check ---

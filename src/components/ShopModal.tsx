@@ -35,14 +35,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
     const [purchasedItemIds, setPurchasedItemIds] = useState<Set<string>>(
         new Set()
     );
-
-    // --- DEBUG LOG ---
-    console.log("ShopModal Rendering. State:", {
-        relics,
-        consumables,
-        rerollCost,
-        purchasedItemIds: Array.from(purchasedItemIds),
-    });
+    const [inventoryIsFull, setInventoryIsFull] = useState(false);
 
     // Effect to update items when shop opens or items are rerolled
     useEffect(() => {
@@ -50,10 +43,8 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             relicIds: string[];
             consumableIds: string[];
             rerollCost: number;
+            inventoryIsFull: boolean;
         }) => {
-            // --- DEBUG LOG ---
-            console.log("ShopModal: handleShopUpdate received data:", data);
-
             const newRelics = data.relicIds
                 .map((id) => AllRelicsData[id])
                 .filter((r): r is Relic => !!r);
@@ -61,15 +52,10 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                 .map((id) => AllConsumablesData[id])
                 .filter((c): c is Consumable => !!c);
 
-            // --- DEBUG LOG ---
-            console.log("ShopModal: Fetched items:", {
-                newRelics,
-                newConsumables,
-            });
-
             setRelics(newRelics);
             setConsumables(newConsumables);
             setRerollCost(data.rerollCost);
+            setInventoryIsFull(data.inventoryIsFull);
             setPurchasedItemIds(new Set()); // Clear purchased items on update/reroll
         };
 
@@ -77,14 +63,9 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         EventBus.on("open-shop", handleShopUpdate);
         EventBus.on("update-shop-items", handleShopUpdate);
 
-        // --- DEBUG LOG ---
-        console.log("ShopModal: Subscribed to shop events");
-
         return () => {
             EventBus.off("open-shop", handleShopUpdate);
             EventBus.off("update-shop-items", handleShopUpdate);
-            // --- DEBUG LOG ---
-            console.log("ShopModal: Unsubscribed from shop events");
         };
     }, []); // Run only once to set up listeners
 
@@ -94,9 +75,6 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             itemId: string;
             itemType: "relic" | "consumable";
         }) => {
-            console.log(
-                `ShopModal: Item ${data.itemId} purchased. Adding to purchased set.`
-            );
             setPurchasedItemIds((prev) => new Set(prev).add(data.itemId));
         };
 
@@ -118,7 +96,6 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
 
     const handleReroll = () => {
         if (canAffordReroll) {
-            console.log("ShopModal: Emitting request-shop-reroll");
             EventBus.emit("request-shop-reroll");
         }
     };
@@ -129,9 +106,6 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
     ) => {
         const cost = getItemCost(item);
         if (playerCoins >= cost && !purchasedItemIds.has(item.id)) {
-            console.log(
-                `ShopModal: Emitting purchase-item for ${itemType} ${item.id}`
-            );
             EventBus.emit("purchase-item", { itemId: item.id, itemType });
         } else {
             console.warn(
@@ -175,6 +149,9 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                             <AlertDialogHeader className="mb-4">
                                 <AlertDialogTitle
                                     className={cn("text-4xl text-center")}
+                                    style={{
+                                        fontWeight: "100",
+                                    }}
                                 >
                                     You found a chest!
                                 </AlertDialogTitle>
@@ -191,7 +168,7 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                             <div className={cn("my-2")}>
                                 <h3
                                     className={cn(
-                                        "text-3xl mb-2 text-amber-300 text-center"
+                                        "text-3xl mb-2 text-amber-200 text-center"
                                     )}
                                 >
                                     Relics
@@ -240,10 +217,15 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                             <div className={cn("my-2")}>
                                 <h3
                                     className={cn(
-                                        "text-3xl mb-2 text-amber-300 text-center"
+                                        "text-3xl mb-2 text-amber-200 text-center"
                                     )}
                                 >
-                                    Items
+                                    Items{" "}
+                                    {inventoryIsFull && (
+                                        <span className="text-lg text-red-400">
+                                            (your inventory is full)
+                                        </span>
+                                    )}
                                 </h3>
                                 <div className="p-4 bg-[#c1a37e] rounded shadow-inner border border-[#a0704f]">
                                     <div className="flex justify-around gap-4 py-2 min-h-[80px] items-center">
@@ -257,8 +239,9 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                                     purchasedItemIds.has(
                                                         consumable.id
                                                     );
-                                                // TODO: Check if inventory is full (needs info from Game.ts)
-                                                const inventoryFull = false; // Placeholder
+                                                const inventoryFull =
+                                                    inventoryIsFull;
+
                                                 return (
                                                     <ItemDisplay
                                                         key={consumable.id}

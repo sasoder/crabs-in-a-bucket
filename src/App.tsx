@@ -52,7 +52,6 @@ function App() {
 
             // Listener for showing game over modal
             const handleShowGameOver = (data: GameOverData) => {
-                console.log("App: Received show-game-over-modal event", data);
                 setGameOverData(data);
                 setIsGameOver(true);
                 setIsShopOpen(false);

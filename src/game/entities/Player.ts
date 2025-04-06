@@ -11,7 +11,7 @@ import { Coin } from "./Coin";
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private moveSpeed = 80; // Base speed
-    private jumpVelocity = -130; // Base jump velocity
+    private jumpVelocity = -140; // Base jump velocity
     private bounceVelocity = -150; // Bounce after stomp
     private digCooldown = 150; // Milliseconds between digs
     private lastDigTime = 0;
@@ -90,9 +90,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.gameScene.terrainManager.clearCurrentRow(checkWorldY);
 
         if (rowCleared) {
-            console.log(
-                `Player initiated base row clear at Y ~ ${checkWorldY}`
-            );
             // this.gameScene.sound.play('dig_sound'); // Optional: Base dig sound
 
             // 3. Handle DRILL Relic for extra depth
@@ -101,14 +98,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             ).filter((relicId) => relicId === "DRILL").length;
 
             if (drillRelicsCount > 0) {
-                console.log(`Player has ${drillRelicsCount} DRILL relics.`);
                 // Loop for each drill relic to clear subsequent rows
                 for (let i = 0; i < drillRelicsCount; i++) {
                     // Calculate the Y position for the next row down
                     const nextRowWorldY = checkWorldY + (i + 1) * TILE_SIZE;
-                    console.log(
-                        `DRILL: Attempting to clear row at Y ~ ${nextRowWorldY}`
-                    );
                     const extraRowCleared =
                         this.gameScene.terrainManager.clearCurrentRow(
                             nextRowWorldY
@@ -124,16 +117,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                             { count: 2 } // Fewer particles for extra digs?
                         );
                     } else {
-                        console.log(
-                            `DRILL: No row to clear at Y ~ ${nextRowWorldY}`
-                        );
                         // Stop drilling deeper if a row fails (e.g., hit bottom or empty space)
                         break;
                     }
                 }
             }
-        } else {
-            // console.log(`Jumped, but no dirt to clear below at Y ~ ${checkWorldY}`);
         }
     }
 
@@ -154,7 +142,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         EventBus.emit("player-damaged"); // For effects like flashing/sound
         // Play hit sound
         this.scene.sound.play("hit", { volume: 0.5 });
-        console.log(`Player took damage! Lives remaining: ${newLives}`);
 
         if (newLives <= 0) {
             EventBus.emit("player-died");
@@ -259,12 +246,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         // Check if boulder is dangerous specifically for the player
         if (obstacle.isMovingDangerously() && !obstacle.safeForPlayer) {
-            // Boulder is moving fast enough to be dangerous to player
-            console.log(
-                `Player hit by dangerous boulder! Velocity: ${obstacle
-                    .getVelocityMagnitude()
-                    .toFixed(1)}`
-            );
             this.takeDamage(1, "boulder_collision"); // Pass source
 
             // Boulder takes damage when it damages the player
@@ -318,7 +299,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             ).includes("STEEL_BOOTS");
 
             if (hasSteelBoots) {
-                console.log("Enemy stomped!");
                 enemy.takeDamage(999);
                 this.bounce();
             } else {
@@ -330,7 +310,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             return true;
         } else if (!this.isInvulnerable) {
             // NOT a stomp - this is a side collision
-            console.log("Player ran into enemy!");
             const survived = this.takeDamage();
 
             // Optional: might want to keep the enemy alive on side collisions

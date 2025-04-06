@@ -69,7 +69,6 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
     }, [data]); // Update relics when data changes
 
     const handleRestart = () => {
-        console.log("GameOverModal: Emitting restart-game");
         EventBus.emit("restart-game"); // Tell Phaser Game scene to restart
         onClose(); // Close the modal in React
     };
@@ -102,6 +101,9 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                 className={cn(
                                     "text-4xl text-amber-100 text-center" // Lighter title for dark bg
                                 )}
+                                style={{
+                                    fontWeight: "100",
+                                }}
                             >
                                 Game Over!
                             </AlertDialogTitle>
@@ -140,7 +142,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                         {/* Relics Collected Section */}
                         <h3
                             className={cn(
-                                "text-3xl mb-3 text-center text-amber-300" // Match shop section header
+                                "text-3xl mb-3 text-center text-amber-200" // Match shop section header
                             )}
                         >
                             Relics Collected:

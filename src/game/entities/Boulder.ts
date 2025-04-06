@@ -213,16 +213,13 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 // Damage enemies when landed upon
                 if (target instanceof Enemy) {
                     target.takeDamage(999); // Apply lethal damage
-                    console.log("Boulder landed on enemy, applying damage");
                 } else if (target instanceof Player) {
                     if (!this.safeForPlayer) {
                         target.takeDamage(1, "boulder_land");
-                        console.log("Boulder landed on player");
                     }
                 } else if (target instanceof Spike) {
                     target.takeDamage(999);
                     this.takeDamage(1);
-                    console.log("Boulder landed on spike");
                 }
             }
         });
@@ -334,16 +331,12 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
             this.active &&
             this.scene.time.now < this.spawnTime + this.spawnGracePeriod
         ) {
-            // console.log("Boulder ignoring direct damage during grace period"); // Optional debug
             return true; // Still alive, just invulnerable
         }
 
         if (!this.active) return false;
 
         this.health -= amount;
-        console.log(
-            `Boulder took ${amount} damage, health now: ${this.health}`
-        );
 
         this.scene.tweens.add({
             targets: this,

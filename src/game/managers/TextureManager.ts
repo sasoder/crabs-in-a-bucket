@@ -10,36 +10,8 @@ export class TextureManager {
     }
 
     public generateAllTextures(): void {
-        console.log("Generating all dynamic textures...");
         this.createTileTexture(BlockType.DIRT, 0xa07042);
         this.createSpikeTexture();
-        console.log("Dynamic texture generation complete.");
-
-        // Debug: verify textures were created
-        this.verifyTextures();
-    }
-
-    private verifyTextures(): void {
-        const expectedTextures = [
-            "dirt_tile",
-            "stone_tile",
-            "gold_tile",
-            "spikes",
-        ];
-        console.log("Verifying generated textures...");
-
-        for (const textureKey of expectedTextures) {
-            if (this.scene.textures.exists(textureKey)) {
-                const frame = this.scene.textures.getFrame(textureKey);
-                console.log(
-                    `✓ Texture '${textureKey}' exists with dimensions ${frame.width}x${frame.height}`
-                );
-            } else {
-                console.error(
-                    `✗ Texture '${textureKey}' was NOT created successfully`
-                );
-            }
-        }
     }
 
     private createTileTexture(type: BlockType, color: number): void {
@@ -76,7 +48,6 @@ export class TextureManager {
 
         graphics.generateTexture(textureKey, this.TILE_SIZE, this.TILE_SIZE);
         graphics.destroy();
-        console.log(`Generated texture: ${textureKey}`);
     }
 
     /**
@@ -147,7 +118,6 @@ export class TextureManager {
 
         graphics.generateTexture(textureKey, this.TILE_SIZE, this.TILE_SIZE);
         graphics.destroy();
-        console.log(`Generated texture: ${textureKey}`);
     }
 }
 
