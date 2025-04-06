@@ -160,8 +160,14 @@ export default class Game extends Phaser.Scene {
         this.physics.add.collider(this.enemiesGroup, this.rowColliderGroup);
         this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
 
-        // Collisions between physics groups
-        this.physics.add.collider(this.bouldersGroup, this.bouldersGroup);
+        // Collisions between physics groups - Add boulder collision handler
+        this.physics.add.collider(
+            this.bouldersGroup,
+            this.bouldersGroup,
+            this.handleBoulderBoulderCollision,
+            undefined,
+            this
+        );
 
         // Enemy-enemy collisions (make them turn around when they bump into each other)
         this.physics.add.collider(
@@ -596,5 +602,71 @@ export default class Game extends Phaser.Scene {
         // Delegate to enemy's collision handler
         enemy.handleBoulderCollision(boulder);
     }
+
+    /**
+     * Handle collisions between boulders - apply damage on high-velocity impacts
+     */
+    private handleBoulderBoulderCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+        (object1, object2) => {
+            // Ensure both objects are Boulders and active
+            if (
+                !(object1 instanceof Boulder) ||
+                !(object2 instanceof Boulder) ||
+                !object1.active ||
+                !object2.active
+            ) {
+                return;
+            }
+
+            const boulder1 = object1 as Boulder;
+            const boulder2 = object2 as Boulder;
+
+            // Ensure both boulders have physics bodies
+            if (!boulder1.body || !boulder2.body) {
+                return;
+            }
+
+            // Calculate relative velocity for collision force
+            const vx1 = boulder1.body.velocity.x;
+            const vy1 = boulder1.body.velocity.y;
+            const vx2 = boulder2.body.velocity.x;
+            const vy2 = boulder2.body.velocity.y;
+
+            // Calculate relative velocity magnitude
+            const relativeVelocity = Math.sqrt(
+                Math.pow(vx1 - vx2, 2) + Math.pow(vy1 - vy2, 2)
+            );
+
+            // Only apply damage for significant collisions
+            if (relativeVelocity > 150) {
+                // Calculate damage based on impact force (1 or 2 damage points)
+                const impactDamage = Math.min(
+                    2,
+                    Math.ceil(relativeVelocity / 200)
+                );
+
+                // Both boulders take damage
+                boulder1.takeDamage(impactDamage);
+                boulder2.takeDamage(impactDamage);
+
+                // Generate impact particles at collision point if significant
+                if (relativeVelocity > 200 && this.particleManager) {
+                    const collisionX = (boulder1.x + boulder2.x) / 2;
+                    const collisionY = (boulder1.y + boulder2.y) / 2;
+
+                    this.particleManager.triggerParticles(
+                        "dirt_tile",
+                        collisionX,
+                        collisionY,
+                        {
+                            count: Math.min(
+                                10,
+                                Math.floor(relativeVelocity / 30)
+                            ),
+                        }
+                    );
+                }
+            }
+        };
 }
 

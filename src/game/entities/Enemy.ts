@@ -143,6 +143,9 @@ export class Enemy extends BaseGameEntity {
             // Apply damage to enemy
             this.takeDamage(boulder.getDamageAmount());
 
+            // Boulder takes damage when it damages an enemy
+            boulder.takeDamage(1);
+
             // Apply knockback in opposite direction of boulder's movement
             if (this.active) {
                 const angle = Phaser.Math.Angle.Between(

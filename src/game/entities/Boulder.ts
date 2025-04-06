@@ -16,6 +16,12 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     private safeTimer?: Phaser.Time.TimerEvent; // Timer for resetting safe status
     private lastPlayerInteraction = 0; // Track when player last interacted with boulder
 
+    // For tracking falling impact
+    private previousVelocityY = 0; // Track previous velocity for impact detection
+    private fallingVelocityThreshold = 120; // Minimum velocity to cause impact damage
+    private lastImpactTime = 0; // Prevent multiple impacts in quick succession
+    private impactCooldown = 150; // Cooldown between allowed impacts in ms
+
     constructor(scene: Phaser.Scene, x: number, y: number) {
         // Assuming you have a 'boulder' texture loaded
         super(scene, x + TILE_SIZE / 2, y + TILE_SIZE / 2, "boulder"); // Center in tile
@@ -49,7 +55,10 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
         if (this.gameScene.terrainManager) {
             this.scene.physics.add.collider(
                 this,
-                this.gameScene.terrainManager.getRowColliderGroup()
+                this.gameScene.terrainManager.getRowColliderGroup(),
+                this.handleImpact,
+                undefined,
+                this
             );
         }
 
@@ -59,6 +68,11 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     preUpdate(time: number, delta: number): void {
         // Update dangerous state on every physics frame for reliability
         this.updateDangerousState();
+
+        // Store previous velocity for impact detection
+        if (this.body) {
+            this.previousVelocityY = this.body.velocity.y;
+        }
 
         // Update rotation based on horizontal velocity (moved from update to preUpdate)
         if (this.body && Math.abs(this.body.velocity.x) > 10) {
@@ -71,6 +85,60 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
     update() {
         // This method can still be called from Game.ts, but we move critical
         // physics-dependent logic to preUpdate for reliability
+    }
+
+    /**
+     * Physics collision callback that handles impacts
+     */
+    private handleImpact: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
+        _obj1,
+        _obj2
+    ) => {
+        this.checkForLandingDamage();
+    };
+
+    /**
+     * Check if the boulder should take damage from landing
+     */
+    private checkForLandingDamage(): void {
+        if (!this.body || !this.active) return;
+
+        const currentTime = this.scene.time.now;
+
+        // Check for a significant impact (falling and then stopping)
+        if (
+            this.previousVelocityY > this.fallingVelocityThreshold &&
+            Math.abs(this.body.velocity.y) < 20 && // Now relatively stopped
+            currentTime - this.lastImpactTime > this.impactCooldown // Not recently impacted
+        ) {
+            // Calculate damage based on fall velocity
+            const impactForce =
+                this.previousVelocityY / this.fallingVelocityThreshold;
+            const damageToDeal = Math.min(2, Math.ceil(impactForce * 0.8));
+
+            if (damageToDeal > 0) {
+                this.lastImpactTime = currentTime;
+                this.takeDamage(damageToDeal);
+
+                // Add visual feedback - subtle flash and shake
+                this.gameScene.tweens.add({
+                    targets: this,
+                    alpha: { from: 0.4, to: this.alpha },
+                    duration: 150,
+                    ease: "Power2",
+                });
+
+                // Create dust particles on impact if available
+                if (this.gameScene.particleManager) {
+                    this.gameScene.particleManager.triggerParticles(
+                        "dirt_tile",
+                        this.x,
+                        this.y + this.height / 2,
+                        { count: 5 }
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -187,6 +255,43 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
      */
     public getDamageAmount(): number {
         return this.damageAmount;
+    }
+
+    /**
+     * Take damage when the boulder damages something else
+     * @param amount Amount of damage to take (defaults to 1)
+     * @returns true if the boulder is still intact, false if destroyed
+     */
+    public takeDamage(amount: number = 1): boolean {
+        this.health -= amount;
+
+        // Update opacity based on remaining health
+        const newOpacity = Math.max(0.3, this.health / 3);
+        this.setAlpha(newOpacity);
+
+        // Add a flash effect to show damage
+        this.scene.tweens.add({
+            targets: this,
+            alpha: { from: 0.1, to: newOpacity },
+            duration: 200,
+            ease: "Power2",
+        });
+
+        // If boulder is destroyed, trigger particles if available
+        if (this.health <= 0) {
+            if (this.gameScene.particleManager) {
+                this.gameScene.particleManager.triggerParticles(
+                    "dirt_tile",
+                    this.x,
+                    this.y,
+                    { count: 10 }
+                );
+            }
+            this.destroy();
+            return false;
+        }
+
+        return true;
     }
 
     // Ensure timers are cleaned up if the boulder is destroyed

@@ -5,6 +5,7 @@ export interface Relic {
     effect: string; // For display in tooltip
     spriteKey: string; // Asset key for the icon
     cost: number; // How much it costs in the shop
+    allowDuplicates?: boolean; // Whether the relic can be purchased multiple times
 }
 
 export const RELICS: Record<string, Relic> = {
@@ -15,16 +16,8 @@ export const RELICS: Record<string, Relic> = {
         description:
             "Your jump dig destroys blocks one layer deeper than normal.",
         spriteKey: "heart",
-        cost: 10,
-    },
-    IMPACT_TREMOR: {
-        id: "IMPACT_TREMOR",
-        name: "Impact Tremor",
-        effect: "Dig Width +1",
-        description:
-            "Your jump dig destroys blocks two tiles wider than normal (e.g., 1 -> 3 wide).",
-        spriteKey: "coin",
-        cost: 10,
+        cost: 25,
+        allowDuplicates: false,
     },
     FEATHER_WEIGHT: {
         id: "FEATHER_WEIGHT",
@@ -33,6 +26,25 @@ export const RELICS: Record<string, Relic> = {
         description: "Your jump is higher than normal.",
         spriteKey: "feather",
         cost: 10,
+        allowDuplicates: true,
+    },
+    SPEED_RUNNER: {
+        id: "SPEED_RUNNER",
+        name: "Speed Runner",
+        effect: "Move Speed +10%",
+        description: "You move faster than normal.",
+        spriteKey: "speed",
+        cost: 10,
+        allowDuplicates: true,
+    },
+    SLAYER: {
+        id: "SLAYER",
+        name: "Slayer",
+        effect: "Enemy kill reward +2",
+        description: "Gain +2 coins for every enemy killed.",
+        spriteKey: "slayer",
+        cost: 15,
+        allowDuplicates: true,
     },
 };
 

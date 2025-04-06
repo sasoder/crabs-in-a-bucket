@@ -31,7 +31,7 @@ export class TerrainManager {
     // --------------------------
 
     // Map dimensions (adjust as needed)
-    private mapWidthTiles = 30; // Width in terms of tiles/columns
+    private mapWidthTiles = 25; // Width in terms of tiles/columns
     private mapHeightTiles = 500; // Max height in terms of tiles/rows
     private mapWidthPixels = this.mapWidthTiles * TILE_SIZE;
     private mapHeightPixels = this.mapHeightTiles * TILE_SIZE;
@@ -186,17 +186,6 @@ export class TerrainManager {
             return false; // No row to clear
         }
     }
-
-    private spawnCoin(worldX: number, worldY: number, count: number = 1) {
-        if (!this.coinsGroup) {
-            console.warn("Cannot spawn coin: coins group not initialized");
-            return;
-        }
-        Coin.spawn(this.scene, this.coinsGroup, worldX, worldY, count);
-    }
-    public hasRowColliderAt(tileY: number): boolean {
-        return this.rowColliders.has(tileY);
-    }
     /**
      * Generates a single row's collider and visuals.
      * @param worldY The world Y coordinate of the top of the row to generate.
@@ -231,7 +220,7 @@ export class TerrainManager {
         );
 
         // Now set the actual size of the physics body
-        colliderSprite.displayWidth = fullWidth; // Make the sprite visually wide (though invisible)
+        colliderSprite.displayWidth = fullWidth + 20; // Make the sprite visually wide (though invisible)
         colliderSprite.displayHeight = colliderHeight; // And the right height
 
         // Set physics body to match
@@ -374,7 +363,8 @@ export class TerrainManager {
                 boulder.y
             );
             if (distSq <= radiusSq) {
-                boulder.destroy();
+                // Apply enough damage to destroy boulder in explosion
+                boulder.takeDamage(3);
             }
         });
     }
@@ -387,39 +377,6 @@ export class TerrainManager {
         this.rowColliderGroup.destroy(true); // Destroy children
         this.rowVisualsGroup.destroy(true); // Destroy children
         console.log("TerrainManager destroyed.");
-    }
-
-    /**
-     * Check if there's a solid row beneath an entity at the specified position.
-     * Entities can use this to determine if they should fall.
-     * @param worldX X position in world coordinates
-     * @param worldY Y position in world coordinates
-     * @returns true if there's a solid row directly below the position
-     */
-    public hasGroundBelow(worldX: number, worldY: number): boolean {
-        // Calculate the row directly below the entity
-        const entityRowY = Math.floor(worldY / TILE_SIZE);
-        const rowBelowY = entityRowY + 1;
-
-        // Check if that row has a collider
-        return this.rowColliders.has(rowBelowY);
-    }
-
-    /**
-     * Check if an entity is at or near a row boundary and should be supported.
-     * Use this for precise checking when entities are moving vertically.
-     * @param worldY Y position in world coordinates
-     * @returns true if the entity is at a position where it should be supported by a row
-     */
-    public isAtRowBoundary(worldY: number): boolean {
-        // Get the position within the current tile
-        const tileY = Math.floor(worldY / TILE_SIZE);
-        const posWithinTile = worldY - tileY * TILE_SIZE;
-
-        // If we're within the bottom boundary region of the tile (80-100% of tile height)
-        // Consider this the "ground support zone"
-        const supportZoneStart = TILE_SIZE * 0.8; // 80% of the way down the tile
-        return posWithinTile >= supportZoneStart && posWithinTile <= TILE_SIZE;
     }
 
     /**

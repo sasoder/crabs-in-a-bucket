@@ -70,7 +70,8 @@ export class ShopManager {
 
         const currentRelicsOwned = this.registry.get("relics") as string[];
         const availableRelics = allRelicIds.filter(
-            (id) => !currentRelicsOwned.includes(id)
+            (id) =>
+                !currentRelicsOwned.includes(id) || RELICS[id].allowDuplicates
         );
         const availableConsumables = allConsumableIds; // Consumables can be bought multiple times
 

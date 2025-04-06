@@ -5,6 +5,7 @@ import { EventBus } from "../EventBus"; // Import EventBus
 import { Boulder } from "./Boulder"; // Import Boulder type
 import { Enemy } from "./Enemy"; // Import Enemy type
 import Game from "../scenes/Game";
+import { Relic } from "../data/Relics";
 // --- Import new entity types ---
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -50,7 +51,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.lastDigTime = this.scene.time.now;
 
         // 1. Trigger Jump
-        this.setVelocityY(this.jumpVelocity);
+        this.setVelocityY(
+            this.jumpVelocity +
+                (this.scene.registry.get("relics") as Relic[]).reduce(
+                    (acc, relic) => {
+                        if (relic.id === "FEATHER_WEIGHT") {
+                            return acc + 10;
+                        }
+                        return acc;
+                    },
+                    0
+                )
+        );
         // Play jump animation if available
         // this.anims.play('jump', true);
 
@@ -187,6 +199,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             );
             this.takeDamage();
 
+            // Boulder takes damage when it damages the player
+            obstacle.takeDamage(1);
+
             // Apply knockback in opposite direction of boulder's movement
             const knockbackX = this.x < obstacle.x ? -120 : 120;
             const knockbackY = -100;
@@ -224,8 +239,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             enemy.takeDamage(999);
             this.bounce();
 
-            // Award coins
-            const coinReward = 5;
+            // Award coins if slayer relic is owned
+            const slayerMultiplier = (
+                this.scene.registry.get("relics") as Relic[]
+            ).reduce((acc, relic) => {
+                if (relic.id === "SLAYER") {
+                    return acc + 2;
+                }
+                return acc;
+            }, 0);
+            const coinReward = slayerMultiplier;
             const currentCoins = this.scene.registry.get("coins") as number;
             this.scene.registry.set("coins", currentCoins + coinReward);
 
