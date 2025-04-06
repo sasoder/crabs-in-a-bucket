@@ -85,7 +85,8 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
             <AlertDialogContent
                 className={cn(
                     "sm:max-w-[475px] p-0 border-none shadow-none", // Match ShopModal size and base style
-                    "bg-[#3a2416]" // Dark wood base like ShopModal
+                    "bg-[#3a2416]", // Dark wood base like ShopModal,
+                    "focus:outline-none"
                 )}
             >
                 <div className={cn(woodFrameStyle)}>
@@ -99,7 +100,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                         <AlertDialogHeader className="mb-4 text-center">
                             <AlertDialogTitle
                                 className={cn(
-                                    "text-4xl text-amber-100 text-center" // Lighter title for dark bg
+                                    "text-4xl text-center" // Lighter title for dark bg
                                 )}
                                 style={{
                                     fontWeight: "100",
@@ -109,7 +110,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                             </AlertDialogTitle>
                             <AlertDialogDescription
                                 className={cn(
-                                    "text-xl text-amber-200/80 px-6 text-center" // Lighter description
+                                    "text-xl text-secondary px-6 text-center" // Lighter description
                                 )}
                             >
                                 Your journey ends here... for now.

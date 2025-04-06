@@ -764,6 +764,7 @@ export default class Game extends Phaser.Scene {
             this.input.keyboard?.disableGlobalCapture();
             this.input.keyboard?.resetKeys();
             EventBus.emit("open-shop", shopData);
+            this.sound.play("buy");
         }
     }
 

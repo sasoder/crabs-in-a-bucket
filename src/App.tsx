@@ -187,7 +187,36 @@ function App() {
 
             case "lore":
                 return (
-                    <div className="text-center flex flex-col items-center justify-center max-w-lg">
+                    <div className="text-center flex flex-col items-center gap-8 justify-center max-w-lg">
+                        <div className="flex flex-row items-center justify-center gap-4">
+                            <img
+                                src="assets/relics/heart_stone.png"
+                                alt="Heart Stone"
+                                className="w-20 mx-auto"
+                                style={{
+                                    imageRendering: "pixelated",
+                                    filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                }}
+                            />
+                            <img
+                                src="assets/relics/slayer.png"
+                                alt="Slayer"
+                                className="w-20 mx-auto"
+                                style={{
+                                    imageRendering: "pixelated",
+                                    filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                }}
+                            />
+                            <img
+                                src="assets/relics/feather.png"
+                                alt="Feather"
+                                className="w-20 mx-auto"
+                                style={{
+                                    imageRendering: "pixelated",
+                                    filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                }}
+                            />
+                        </div>
                         <p
                             className="text-2xl text-white mb-8"
                             style={{
@@ -217,7 +246,7 @@ function App() {
                 return (
                     <div className="text-center flex flex-col items-center justify-center">
                         <h2
-                            className="text-2xl text-white mb-6"
+                            className="text-2xl text-white mb-8"
                             style={{
                                 textShadow: "0 0 10px rgba(255, 255, 255, 0.3)",
                             }}
@@ -231,31 +260,47 @@ function App() {
                                         src="assets/ui/left.png"
                                         alt="Left"
                                         className="w-12 h-12"
-                                        style={{ imageRendering: "pixelated" }}
+                                        style={{
+                                            imageRendering: "pixelated",
+                                            filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                        }}
                                     />
                                     <img
                                         src="assets/ui/up.png"
                                         alt="Up"
                                         className="w-12 h-12"
-                                        style={{ imageRendering: "pixelated" }}
+                                        style={{
+                                            imageRendering: "pixelated",
+                                            filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                        }}
                                     />
                                     <img
                                         src="assets/ui/right.png"
                                         alt="Right"
                                         className="w-12 h-12"
-                                        style={{ imageRendering: "pixelated" }}
+                                        style={{
+                                            imageRendering: "pixelated",
+                                            filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                        }}
                                     />
                                 </div>
-                                <p className="text-white mt-3">Move and dig</p>
+                                <p className="text-white mt-3 text-xl">
+                                    Move and dig
+                                </p>
                             </div>
                             <div className="flex flex-col items-center">
                                 <img
                                     src="assets/ui/spacebar.png"
                                     alt="Spacebar"
                                     className="h-12"
-                                    style={{ imageRendering: "pixelated" }}
+                                    style={{
+                                        imageRendering: "pixelated",
+                                        filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
+                                    }}
                                 />
-                                <p className="text-white mt-3">Use items</p>
+                                <p className="text-white mt-3 text-xl">
+                                    Use items
+                                </p>
                             </div>
                         </div>
                         <div className="mt-auto">

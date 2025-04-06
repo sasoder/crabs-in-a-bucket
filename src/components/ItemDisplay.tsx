@@ -136,7 +136,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
             <TooltipContent
                 side="bottom"
                 className={cn(
-                    "max-w-[200px] z-50",
+                    "max-w-[230px] z-50",
                     "bg-[#5a3d2b] border-[#a0704f] text-amber-100" // Chest colors
                 )}
                 style={{
