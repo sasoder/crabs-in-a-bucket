@@ -128,6 +128,9 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         // Apply damage to any entities in range
         this.damageEntitiesInRange();
 
+        // screen shake
+        this.gameScene.cameras.main.shake(100, 0.01);
+
         // Destroy the TNT
         this.destroy();
     }

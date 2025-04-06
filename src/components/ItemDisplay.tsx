@@ -28,6 +28,7 @@ interface ItemDisplayProps {
     size?: "sm" | "md" | "lg" | "xl" | "xxl"; // Optional size variants
     className?: string; // Allow custom styling
     background?: boolean; // Flag to display background of button
+    count?: number; // Add count prop
 }
 
 const ItemDisplay: React.FC<ItemDisplayProps> = ({
@@ -38,6 +39,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
     disabled = false,
     size = "md",
     background = false,
+    count, // Destructure count
     className,
 }) => {
     // Determine item type primarily by override, then by type guard
@@ -113,6 +115,18 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                                 // Optionally show a placeholder
                             }}
                         />
+                        {/* Display count if greater than 1 */}
+                        {count && count > 1 && (
+                            <span
+                                className="absolute bottom-0 right-0 text-xl px-1 py-0.5 text-white pointer-events-none"
+                                style={{
+                                    textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
+                                    fontWeight: "100",
+                                }} // Add text shadow for readability
+                            >
+                                x{count}
+                            </span>
+                        )}
                     </Button>
                     {showPrice && cost !== undefined && (
                         <Coin size="sm" cost={cost} muted={disabled} />

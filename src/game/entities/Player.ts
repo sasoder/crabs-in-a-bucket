@@ -334,11 +334,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         if (cursors.left.isDown) {
             this.setVelocityX(-effectiveMoveSpeed); // Use effective speed
-            this.setFlipX(true); // Flip sprite left
+            this.setFlipX(false); // Flip sprite left
             // this.anims.play('run', true);
         } else if (cursors.right.isDown) {
             this.setVelocityX(effectiveMoveSpeed); // Use effective speed
-            this.setFlipX(false); // Normal sprite direction
+            this.setFlipX(true); // Normal sprite direction
             // this.anims.play('run', true);
         } else {
             this.setVelocityX(0);

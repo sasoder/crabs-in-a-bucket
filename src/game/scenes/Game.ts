@@ -6,6 +6,7 @@ import { ShopManager } from "../managers/ShopManager";
 import { TILE_SIZE } from "../constants";
 import { Boulder } from "../entities/Boulder";
 import { Enemy } from "../entities/Enemy";
+import { Spike } from "../entities/Spike";
 import { Coin } from "../entities/Coin";
 import { TextureManager } from "../managers/TextureManager";
 import { ParticleManager } from "../managers/ParticleManager";
@@ -177,6 +178,19 @@ export default class Game extends Phaser.Scene {
         this.physics.add.collider(this.enemiesGroup, this.rowColliderGroup);
         this.physics.add.collider(this.coinsGroup, this.rowColliderGroup);
         this.physics.add.collider(this.tntGroup, this.rowColliderGroup);
+
+        // Get spike group from terrain manager and add collisions if it exists
+        const spikesGroup = this.terrainManager.getSpikesGroup();
+        if (spikesGroup) {
+            // Set collision but use a more generic physics callback approach
+            this.physics.add.collider(
+                this.player,
+                spikesGroup,
+                this.handlePlayerSpikeCollision,
+                undefined,
+                this
+            );
+        }
 
         // Add player collision with TNT
         this.physics.add.collider(this.player, this.tntGroup);
@@ -559,6 +573,13 @@ export default class Game extends Phaser.Scene {
         if (this.rowColliderGroup) {
             this.rowColliderGroup.destroy(true);
         }
+
+        // Clean up the spikes group
+        const spikesGroup = this.terrainManager?.getSpikesGroup();
+        if (spikesGroup) {
+            spikesGroup.destroy(true);
+        }
+
         console.log("Destroyed physics groups.");
 
         this.cameras.main.stopFollow();
@@ -815,5 +836,29 @@ export default class Game extends Phaser.Scene {
             );
         }
     }
+
+    /**
+     * Handle player collision with spikes
+     */
+    private handlePlayerSpikeCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+        (object1, object2) => {
+            if (!this.player || !this.player.active) return;
+
+            // Check if player is invulnerable
+            if (!this.player.isInvulnerable) {
+                this.player.takeDamage(1);
+            }
+
+            // Damage the spike if we can identify it
+            const spike =
+                object1 instanceof Spike
+                    ? object1
+                    : object2 instanceof Spike
+                    ? object2
+                    : null;
+            if (spike && spike.active) {
+                spike.takeDamage(1);
+            }
+        };
 }
 

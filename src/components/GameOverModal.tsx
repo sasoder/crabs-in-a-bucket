@@ -28,19 +28,41 @@ interface GameOverModalProps {
     data: GameOverData | null; // Data from the game over event
 }
 
+// Type for storing relic data along with its count
+type RelicWithCount = Relic & { count: number };
+
 // Basic wood texture simulation using gradients and color stops (similar to ShopModal)
 const woodFrameStyle =
     "border-4 border-t-[#a0704f] border-l-[#a0704f] border-b-[#5a3d2b] border-r-[#5a3d2b] p-1";
 
 export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
-    const [collectedRelics, setCollectedRelics] = useState<Relic[]>([]);
+    const [collectedRelics, setCollectedRelics] = useState<RelicWithCount[]>(
+        []
+    ); // State now holds relics with counts
 
     useEffect(() => {
         if (data?.relics) {
-            const relics = data.relics
-                .map((id) => AllRelicsData[id])
-                .filter((r): r is Relic => !!r);
-            setCollectedRelics(relics);
+            // 1. Count occurrences of each relic ID
+            const relicCounts = data.relics.reduce<Record<string, number>>(
+                (acc, id) => {
+                    acc[id] = (acc[id] || 0) + 1;
+                    return acc;
+                },
+                {}
+            );
+
+            // 2. Get unique relic IDs
+            const uniqueRelicIds = Object.keys(relicCounts);
+
+            // 3. Map unique IDs to full Relic data and count
+            const relicsWithCounts = uniqueRelicIds
+                .map((id) => {
+                    const relic = AllRelicsData[id];
+                    return relic ? { ...relic, count: relicCounts[id] } : null;
+                })
+                .filter((item): item is RelicWithCount => !!item); // Type guard
+
+            setCollectedRelics(relicsWithCounts);
         } else {
             setCollectedRelics([]);
         }
@@ -123,15 +145,16 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                             </h3>
                             <div className="flex flex-wrap justify-center gap-4 py-2 min-h-[60px] items-center">
                                 {collectedRelics.length > 0 ? (
-                                    collectedRelics.map((relic) => (
+                                    collectedRelics.map((relicWithCount) => (
                                         <ItemDisplay
-                                            key={relic.id}
-                                            item={relic}
+                                            key={relicWithCount.id}
+                                            item={relicWithCount}
                                             itemTypeOverride="relic"
                                             background={false}
-                                            showPrice={false} // No price needed here
-                                            disabled={true} // Not interactable
-                                            size="lg" // Medium size icons
+                                            showPrice={false}
+                                            disabled={true}
+                                            size="lg"
+                                            count={relicWithCount.count}
                                         />
                                     ))
                                 ) : (

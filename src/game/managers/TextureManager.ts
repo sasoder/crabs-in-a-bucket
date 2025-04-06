@@ -12,6 +12,7 @@ export class TextureManager {
     public generateAllTextures(): void {
         console.log("Generating all dynamic textures...");
         this.createTileTexture(BlockType.DIRT, 0xa07042);
+        this.createSpikeTexture();
         console.log("Dynamic texture generation complete.");
 
         // Debug: verify textures were created
@@ -23,7 +24,7 @@ export class TextureManager {
             "dirt_tile",
             "stone_tile",
             "gold_tile",
-            "coin_dynamic",
+            "spikes",
         ];
         console.log("Verifying generated textures...");
 
@@ -72,6 +73,77 @@ export class TextureManager {
                 2
             );
         }
+
+        graphics.generateTexture(textureKey, this.TILE_SIZE, this.TILE_SIZE);
+        graphics.destroy();
+        console.log(`Generated texture: ${textureKey}`);
+    }
+
+    /**
+     * Creates a spikes texture
+     */
+    private createSpikeTexture(): void {
+        const textureKey = "spikes";
+
+        if (this.scene.textures.exists(textureKey)) return;
+
+        const graphics = this.scene.make.graphics();
+
+        // Base (similar to dirt)
+        graphics.fillStyle(0xa07042, 1); // Same color as dirt
+        graphics.fillRect(0, 0, this.TILE_SIZE, this.TILE_SIZE);
+
+        // Add spikes on top
+        graphics.fillStyle(0x333333, 1); // Dark gray for spikes
+
+        // Draw 4 triangular spikes
+        const spikeHeight = this.TILE_SIZE * 0.4;
+        const spikeWidth = this.TILE_SIZE * 0.2;
+
+        // Center spike
+        graphics.beginPath();
+        graphics.moveTo(this.TILE_SIZE / 2, this.TILE_SIZE / 2 - spikeHeight);
+        graphics.lineTo(
+            this.TILE_SIZE / 2 - spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.lineTo(
+            this.TILE_SIZE / 2 + spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.closePath();
+        graphics.fillPath();
+
+        // Left spike
+        graphics.beginPath();
+        graphics.moveTo(this.TILE_SIZE / 4, this.TILE_SIZE / 2 - spikeHeight);
+        graphics.lineTo(
+            this.TILE_SIZE / 4 - spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.lineTo(
+            this.TILE_SIZE / 4 + spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.closePath();
+        graphics.fillPath();
+
+        // Right spike
+        graphics.beginPath();
+        graphics.moveTo(
+            (this.TILE_SIZE * 3) / 4,
+            this.TILE_SIZE / 2 - spikeHeight
+        );
+        graphics.lineTo(
+            (this.TILE_SIZE * 3) / 4 - spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.lineTo(
+            (this.TILE_SIZE * 3) / 4 + spikeWidth / 2,
+            this.TILE_SIZE / 2
+        );
+        graphics.closePath();
+        graphics.fillPath();
 
         graphics.generateTexture(textureKey, this.TILE_SIZE, this.TILE_SIZE);
         graphics.destroy();

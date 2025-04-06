@@ -195,6 +195,7 @@ export class Enemy extends BaseGameEntity {
 
         // Clear any collision records before destroying
         this.recentBoulderCollisions.clear();
+        this.gameScene.sound.play("hit");
 
         super.destroy(fromScene);
     }

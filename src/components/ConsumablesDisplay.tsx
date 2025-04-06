@@ -34,11 +34,6 @@ const ConsumablesDisplay: React.FC<ConsumablesDisplayProps> = ({
                     : "No consumables"
             }
         >
-            {/* Placeholder if empty */}
-            {itemsToShow.length === 0 && (
-                <div className="absolute inset-0 border border-dashed border-secondary/80 rounded opacity-50"></div>
-            )}
-
             {/* Render the stack */}
             {itemsToShow.map((item, index) => {
                 // Calculate offset: items deeper in the stack (earlier in itemsToShow) get more offset

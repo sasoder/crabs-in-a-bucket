@@ -9,13 +9,13 @@ export interface Relic {
 }
 
 export const RELICS: Record<string, Relic> = {
-    STEEL_TOED_BOOTS: {
-        id: "STEEL_TOED_BOOTS",
-        name: "Steel-Toed Boots",
+    STEEL_BOOTS: {
+        id: "STEEL_BOOTS",
+        name: "Steel Boots",
         effect: "Dig Depth +1",
         description:
             "Your jump dig destroys blocks one layer deeper than normal.",
-        spriteKey: "heart",
+        spriteKey: "steel_boots",
         cost: 25,
         allowDuplicates: false,
     },
