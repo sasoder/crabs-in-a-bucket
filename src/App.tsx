@@ -95,7 +95,7 @@ function App() {
         <TooltipProvider>
             <div
                 id="app"
-                className="h-screen w-screen bg-[#87ceeb]/30 flex justify-center items-center"
+                className="h-screen w-screen bg-[#87ceeb]/20 flex justify-center items-center"
             >
                 {!gameStarted ? (
                     // Show Start Button if game hasn't started
@@ -105,7 +105,7 @@ function App() {
                             variant="secondary"
                             onClick={startGame}
                             className={cn(
-                                "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"
+                                "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                             )}
                         >
                             Dig

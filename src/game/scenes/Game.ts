@@ -425,6 +425,7 @@ export default class Game extends Phaser.Scene {
 
         // Damage player immediately on contact, pass source string
         player.takeDamage(spike.damageAmount, "spike");
+        spike.takeDamage(1);
     }
 
     private handleEnemySpikeCollision(

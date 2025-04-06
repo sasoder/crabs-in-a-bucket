@@ -228,18 +228,6 @@ export class TerrainManager {
                         { count: 3 }
                     );
                 }
-
-                // Particles for spike row (one row above)
-                const spikeRowParticleY =
-                    playerCurrentRow * TILE_SIZE + TILE_SIZE / 2;
-                for (let i = 0; i < this.mapWidthTiles; i++) {
-                    this.particleManager.triggerParticles(
-                        "spikes",
-                        i * TILE_SIZE + TILE_SIZE / 2,
-                        spikeRowParticleY,
-                        { count: 2, speed: 70, scale: 0.4 }
-                    );
-                }
             }
 
             // Emit an event that a row was cleared
@@ -334,13 +322,12 @@ export class TerrainManager {
             // Need to check spikes group too now for occupancy
             const checkRadius = TILE_SIZE * 0.8; // Check slightly smaller than tile
 
-            // IMPROVED OCCUPANCY CHECK - Use a more comprehensive check to prevent entities spawning too close
-            // Check a larger area to give entities more space from each other
+            // Reduce the occupancy check area to roughly the target tile
             const safeSpawnCheckArea = {
-                x: spawnWorldX - TILE_SIZE, // Check 1 full tile to the left
-                y: spawnSurfaceY - TILE_SIZE, // Check 1 full tile above
-                width: TILE_SIZE * 2, // 2 tiles wide (1 left, 1 right)
-                height: TILE_SIZE * 1.5, // 1.5 tiles high
+                x: spawnWorldX - TILE_SIZE / 2, // Center on target X
+                y: spawnSurfaceY - TILE_SIZE / 2, // Center roughly on spawn surface Y
+                width: TILE_SIZE, // Check 1 tile width
+                height: TILE_SIZE * 1.1, // Check slightly more than 1 tile height vertically
             };
 
             const groupsToCheck = [
@@ -385,71 +372,65 @@ export class TerrainManager {
 
             if (spaceOccupied) continue; // Skip spawning if something is already there
 
-            // ADDITIONAL SPAWN LIMITER - Reduce entity density for performance
-            // Only allow one entity type per column with low probability
-            const spawnCategory = Math.random();
-            let entitySpawned = false;
+            // --- REVISED SPAWN LOGIC ---
+            // Give each entity type an independent chance if space is free.
+            // If one spawns, mark the space as occupied for subsequent checks in this column.
 
-            if (spawnCategory < currentBoulderChance && !entitySpawned) {
+            // Check Boulder
+            if (Math.random() < currentBoulderChance) {
                 const boulder = new Boulder(
                     this.scene,
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
-                // Set depth higher than tiles to draw on top
                 boulder.setDepth(10);
                 this.bouldersGroup.add(boulder);
-                entitySpawned = true;
-            } else if (
-                spawnCategory < currentBoulderChance + currentEnemyChance &&
-                !entitySpawned
-            ) {
+                spaceOccupied = true; // Mark space as occupied for next checks
+            }
+
+            // Check Enemy (only if space isn't already taken by boulder)
+            if (!spaceOccupied && Math.random() < currentEnemyChance) {
                 const enemy = new Enemy(
                     this.scene,
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
-                // Set depth higher than tiles to draw on top
                 enemy.setDepth(10);
                 enemy.setSpeed(currentEnemySpeed);
                 this.enemiesGroup.add(enemy);
-                entitySpawned = true;
-            } else if (
-                spawnCategory <
-                    currentBoulderChance +
-                        currentEnemyChance +
-                        currentSpikeChance &&
-                !entitySpawned
-            ) {
+                spaceOccupied = true; // Mark space as occupied for next checks
+            }
+
+            // Check Spike (only if space isn't already taken by boulder or enemy)
+            if (!spaceOccupied && Math.random() < currentSpikeChance) {
                 if (this.spikesGroup) {
-                    // Spawn Y is now the top of the row's tile space,
-                    // as the Spike's origin is at its base.
                     const spike = new Spike(
                         this.scene,
                         spawnWorldX - TILE_SIZE / 2, // Adjust X back because origin is center now
                         spikeSpawnY + 10 // Y is the top of the row
                     );
-                    // Set depth higher than tiles to draw on top
                     spike.setDepth(10);
-                    // Add to the static group
                     this.spikesGroup.add(spike);
-                    entitySpawned = true;
+                    spaceOccupied = true; // Mark space as occupied for next checks
                 }
             }
 
-            if (!entitySpawned && Math.random() < currentCoinChance) {
-                const coin = Coin.spawn(
+            // Check Coin (only if space isn't taken by others)
+            // Coins typically don't need to occupy space afterwards unless desired for balance.
+            if (!spaceOccupied && Math.random() < currentCoinChance) {
+                Coin.spawn(
+                    // Assuming Coin.spawn handles adding to the group
                     this.scene,
                     this.coinsGroup as Phaser.Physics.Arcade.Group,
                     spawnWorldX,
                     spawnSurfaceY - TILE_SIZE / 2 // Spawn slightly above surface
                 );
-                // Coins.spawn returns void, not the coin instance, so we'll set depth for the entire group
                 if (this.coinsGroup) {
-                    // Set depth for all coins in the group
-                    this.coinsGroup.setDepth(10);
+                    this.coinsGroup.setDepth(10); // Ensure coins are visible
                 }
+                // spaceOccupied = true; // Optional: uncomment if coins should prevent other spawns in rare cases
             }
+            // --- END REVISED SPAWN LOGIC ---
         }
     }
     // --- END REVISED ---
