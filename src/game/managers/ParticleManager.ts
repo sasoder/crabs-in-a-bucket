@@ -1,37 +1,69 @@
 import Phaser from "phaser";
-import { TILE_SIZE } from "../constants";
 
 // Define a particle options interface
-interface ParticleOptions {
+export interface ParticleOptions {
     count?: number; // How many particles to emit
-    speed?: number; // Speed modifier
-    scale?: number; // Scale modifier
+    speed?: number; // Speed range or single value
+    scale?: { start: number; end: number } | number; // Scale range or single value
     lifespan?: number; // Lifespan modifier
+    gravityY?: number; // Optional gravity override
+    alpha?: { start: number; end: number } | number; // Alpha range or single value
+    angle?: { min: number; max: number } | number; // Angle range or single value
+    blendMode?: string; // Direct string as used in examples ("ADD", "NORMAL", etc.)
 }
 
 export class ParticleManager {
     private scene: Phaser.Scene;
-    private TILE_SIZE = TILE_SIZE;
+    private emitters: Map<
+        string,
+        Phaser.GameObjects.Particles.ParticleEmitter
+    > = new Map();
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
+        console.log("ParticleManager created in scene:", scene.scene.key);
     }
 
     public initializeEmitters(textureKeys: string[]): void {
-        // Create a simple square particle texture if it doesn't exist
-        if (!this.scene.textures.exists("particle")) {
-            const graphics = this.scene.make.graphics({ x: 0, y: 0 });
-            graphics.fillStyle(0xffffff);
-            graphics.fillRect(0, 0, 8, 8);
-            graphics.generateTexture("particle", 8, 8);
-            graphics.destroy();
-        }
+        // Log how many emitters we're initializing
+        console.log(
+            `Initializing ${textureKeys.length} particle emitters:`,
+            textureKeys
+        );
 
-        // Log the available textures for debugging
-        const availableTextures: string[] = [];
-        this.scene.textures.each((texture: Phaser.Textures.Texture) => {
-            availableTextures.push(texture.key);
-        }, this);
+        textureKeys.forEach((key) => {
+            if (!this.scene.textures.exists(key)) {
+                console.warn(
+                    `ParticleManager: Texture key "${key}" not found.`
+                );
+                return;
+            }
+
+            console.log(`Creating emitter for: ${key}`);
+
+            // Use a simpler, consistent config with higher maxParticles
+            const emitter = this.scene.add.particles(0, 0, key, {
+                speed: { min: 40, max: 80 }, // Add some speed variation
+                scale: { start: 0.6, end: 0.1 },
+                alpha: { start: 1, end: 0.3 },
+                lifespan: { min: 600, max: 1000 }, // Add lifespan variation
+                blendMode: Phaser.BlendModes.NORMAL,
+                gravityY: 250, // Consistent gravity
+                maxParticles: 300, // INCREASED: Allow more particles for row clearing bursts
+                quantity: 5, // Default quantity per trigger (can be overridden)
+                frequency: -1, // Explode only when told
+            });
+
+            emitter.setDepth(1000);
+            this.emitters.set(key, emitter);
+
+            console.log(`Emitter created for "${key}" and added to map.`);
+
+            // Simplified debug check
+            if (this.scene.textures.exists(key)) {
+                console.log(`Texture "${key}" exists.`);
+            }
+        });
     }
 
     public triggerParticles(
@@ -40,55 +72,58 @@ export class ParticleManager {
         worldY: number,
         options?: ParticleOptions
     ): void {
-        // Center position
-        const centerX = worldX + this.TILE_SIZE / 2;
-        const centerY = worldY + this.TILE_SIZE / 2;
+        console.log(
+            `Trying to trigger particles for "${textureKey}" at (${worldX}, ${worldY})`
+        );
 
-        // Number of particles to create
-        const count = options?.count || 8;
+        // Debug available emitters
+        console.log("Available emitters:", Array.from(this.emitters.keys()));
 
-        // Create individual particle sprites using the actual block texture
-        for (let i = 0; i < count; i++) {
-            // Create a particle
-            const particle = this.scene.add.sprite(
-                centerX,
-                centerY,
-                textureKey
+        const emitter = this.emitters.get(textureKey);
+        if (!emitter) {
+            console.warn(
+                `ParticleManager: Emitter for key "${textureKey}" not found.`
             );
-
-            // Set particle properties
-            particle.setAlpha(0.9);
-            particle.setDepth(1000); // Very high depth
-
-            // Small scale for particles (between 0.1 and 0.3 of original size)
-            const baseScale = options?.scale || 0.2;
-            particle.setScale(baseScale + Math.random() * 0.1);
-
-            // Random velocity
-            const angle = Math.random() * Math.PI * 2;
-            const baseSpeed = options?.speed || 20;
-            const speed = baseSpeed / 2 + Math.random() * baseSpeed;
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
-
-            // Add slight rotation
-            const rotation = Math.random() * 0.1 - 0.05;
-
-            // Animate with tweens
-            this.scene.tweens.add({
-                targets: particle,
-                x: particle.x + vx,
-                y: particle.y + vy,
-                alpha: 0,
-                scale: particle.scale * 0.5,
-                rotation: particle.rotation + rotation,
-                duration: (options?.lifespan || 500) + Math.random() * 300,
-                ease: "Power2",
-                onComplete: () => {
-                    particle.destroy();
-                },
-            });
+            return;
         }
+
+        // Apply options if provided
+        if (options) {
+            if (options.speed !== undefined) emitter.speed = options.speed;
+            if (options.lifespan !== undefined)
+                emitter.lifespan = options.lifespan;
+            if (options.gravityY !== undefined)
+                emitter.gravityY = options.gravityY;
+            if (options.scale !== undefined) {
+                // Handle both number and object scale types
+                if (typeof options.scale === "number") {
+                    emitter.scaleX = emitter.scaleY = options.scale;
+                } else {
+                    // Set scale as object with start/end
+                    emitter.scale = options.scale as any;
+                }
+            }
+            if (options.blendMode !== undefined)
+                emitter.blendMode = options.blendMode;
+        }
+
+        // Move the emitter to the target position
+        emitter.setPosition(worldX, worldY);
+
+        // Use explode for a burst of particles
+        const count = options?.count || 8;
+        console.log(`Exploding ${count} particles`);
+
+        // Explicitly call explode with just count
+        emitter.explode(count);
+    }
+
+    public destroy(): void {
+        console.log("Destroying all particle emitters");
+        this.emitters.forEach((emitter) => {
+            emitter.destroy();
+        });
+        this.emitters.clear();
     }
 }
 

@@ -111,17 +111,23 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
         // Play explosion sound
         this.scene.sound.play("explosion");
 
-        // Explosion effect with particles if available
+        // Simplified explosion effect
         if (this.gameScene.particleManager) {
+            // Single, central explosion burst
             this.gameScene.particleManager.triggerParticles(
-                "sand_tile",
+                "sand_tile", // Or a dedicated explosion particle if you create one
                 this.x,
                 this.y,
-                { count: 250, speed: 100 }
+                {
+                    speed: 120, // Add some speed variation
+                    count: 60,
+                    alpha: { start: 1, end: 0.3 },
+                    scale: { start: 2.0, end: 0.2 }, // Correct range format
+                }
             );
         }
 
-        // Emit event for terrain destruction and damage
+        // Emit event for terrain destruction and damage (TerrainManager handles this)
         EventBus.emit("create-explosion", {
             worldX: this.x,
             worldY: this.y,

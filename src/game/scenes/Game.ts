@@ -117,7 +117,16 @@ export default class Game extends Phaser.Scene {
         this.coinsGroup.setDepth(10);
 
         this.particleManager = new ParticleManager(this);
-        this.particleManager.initializeEmitters(["sand_tile", "enemy", "coin"]);
+        // Initialize with ALL required particle texture keys
+        this.particleManager.initializeEmitters([
+            "sand_tile",
+            "dirt_tile",
+            "stone_tile",
+            "enemy",
+            "coin",
+            "boulder",
+            "spikes",
+        ]);
 
         this.terrainManager = new TerrainManager(
             this,
@@ -181,7 +190,7 @@ export default class Game extends Phaser.Scene {
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
         this.registry.set("relics", [] as string[]);
-        this.registry.set("consumables", [] as string[]);
+        this.registry.set("consumables", ["TNT"] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
 
@@ -769,8 +778,8 @@ export default class Game extends Phaser.Scene {
             this.shopManager.destroy();
         }
         if (this.particleManager) {
-            // Use the correct method based on initialization
-            // this.particleManager.destroyEmitters(); // Commented out due to persistent linter error
+            // Use the new destroy method
+            this.particleManager.destroy();
         }
         if (this.enemyManager) {
             this.enemyManager.cleanup();

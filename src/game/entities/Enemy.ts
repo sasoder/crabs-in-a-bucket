@@ -160,8 +160,8 @@ export class Enemy extends BaseGameEntity {
                     enemyY,
                     {
                         count: 12,
-                        speed: 80,
-                        scale: 0.25,
+                        speed: 150,
+                        scale: 1,
                         lifespan: 800,
                     }
                 );

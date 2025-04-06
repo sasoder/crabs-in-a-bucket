@@ -7,7 +7,7 @@ import { Spike } from "../entities/Spike";
 import { EventBus } from "../EventBus";
 import { Coin } from "../entities/Coin";
 import Game from "../scenes/Game";
-import { ParticleManager } from "./ParticleManager";
+import { ParticleManager, ParticleOptions } from "./ParticleManager";
 
 // Remove local tile index constants since we're now importing from constants.ts
 
@@ -259,17 +259,25 @@ export class TerrainManager {
                 for (let i = 0; i < this.mapWidthTiles; i++) {
                     const particleX = i * TILE_SIZE + TILE_SIZE / 2;
                     const tileType = tileTypes[i];
-
-                    // Get the particle emitter name from the map
                     const particleName =
                         TILE_TO_PARTICLE_MAP[tileType] || "sand_tile";
 
-                    if (particleName) {
+                    // Ensure particleName is valid and not empty
+                    if (particleName && particleName.length > 0) {
+                        // Use consistent, simple options for row clearing
+                        const particleOptions: ParticleOptions = {
+                            count: 5, // Reduced count per tile to avoid overload
+                            speed: 60,
+                            scale: { start: 1, end: 0.5 }, // Consistent scale
+                            lifespan: 800,
+                            gravityY: 250,
+                        };
+
                         this.particleManager.triggerParticles(
                             particleName,
                             particleX,
                             particleY,
-                            { count: 5 }
+                            particleOptions
                         );
                     }
                 }
@@ -524,7 +532,7 @@ export class TerrainManager {
         const centerTileY = Math.floor(data.worldY / TILE_SIZE);
         const tileRadius = Math.ceil(data.radius / TILE_SIZE);
 
-        // Clear rows within the blast radius
+        // Clear rows within the blast radius - clearCurrentRow will handle particles
         for (let dy = -tileRadius; dy <= tileRadius; dy++) {
             const targetTileY = centerTileY + dy;
             const rowWorldY = targetTileY * TILE_SIZE;
@@ -533,16 +541,10 @@ export class TerrainManager {
             const yDist = data.worldY - (rowWorldY + TILE_SIZE / 2);
             if (yDist * yDist > radiusSq) continue; // Skip row if too far vertically
 
-            // Attempt to clear the entire row if any part is within radius (simplification)
-            // A more precise check could iterate columns, but clearing full row is simpler
-            // Check horizontal distance of row center to explosion center
-            const xDist = data.worldX - this.mapWidthPixels / 2;
-            const checkRadiusSq =
-                radiusSq +
-                (this.mapWidthPixels / 2) * (this.mapWidthPixels / 2); // Allow hitting edge
-            if (xDist * xDist + yDist * yDist <= checkRadiusSq) {
-                this.clearCurrentRow(rowWorldY - TILE_SIZE / 2); // Pass Y above the target row
-            }
+            // Attempt to clear the row if any part is within radius
+            // A simple check based on row Y and explosion Y is sufficient here
+            // We rely on clearCurrentRow to actually remove tiles and create particles
+            this.clearCurrentRow(rowWorldY - TILE_SIZE / 2); // Pass Y above the target row
         }
 
         // Damage/Destroy Entities in blast radius (remains similar)

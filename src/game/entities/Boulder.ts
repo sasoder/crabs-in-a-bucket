@@ -155,8 +155,8 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 this.x,
                 body.bottom,
                 {
-                    count: 8,
-                    speed: 15,
+                    count: 5,
+                    speed: 40,
                     lifespan: 500,
                     scale: 0.8,
                 }
@@ -381,7 +381,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
                 this.y,
                 {
                     count: 15,
-                    speed: 25,
+                    speed: 45,
                     lifespan: 450,
                     scale: 0.8,
                 }
