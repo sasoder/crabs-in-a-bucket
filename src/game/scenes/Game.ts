@@ -180,7 +180,7 @@ export default class Game extends Phaser.Scene {
 
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
-        this.registry.set("relics", ["SLAYER"] as string[]);
+        this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
@@ -961,17 +961,18 @@ export default class Game extends Phaser.Scene {
             case "GEODE":
                 // Give player random amount of coins (3-15)
                 const coinAmount = Phaser.Math.Between(2, 15);
-                const currentCoins = this.registry.get("coins") as number;
-                this.registry.set("coins", currentCoins + coinAmount);
 
-                // Update total coins collected
-                let totalCoinsCollected =
-                    (this.registry.get("totalCoinsCollected") as number) || 0;
-                totalCoinsCollected += coinAmount;
-                this.registry.set("totalCoinsCollected", totalCoinsCollected);
+                for (let i = 0; i < coinAmount; i++) {
+                    Coin.spawn(
+                        this,
+                        this.coinsGroup,
+                        this.player.x,
+                        this.player.y
+                    );
+                }
 
                 // Play coin sound
-                this.sound.play("collectcoin");
+                this.sound.play("tick");
 
                 usedSuccessfully = true;
                 EventBus.emit("stats-changed"); // Update UI
