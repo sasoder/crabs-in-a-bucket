@@ -297,27 +297,34 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const playerBody = this.body as Phaser.Physics.Arcade.Body;
         const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
 
+        // SIMPLIFY the stomp check to be more forgiving
         const isStomping =
-            playerBody.velocity.y > 0 && playerBody.bottom <= enemyBody.top + 8; // Increased tolerance
+            playerBody.velocity.y > 0 && // Player must be moving down
+            playerBody.bottom < enemyBody.top + 10; // Allow a bit more leeway
 
         if (isStomping) {
+            // STEEL_BOOTS remains as a bonus but doesn't affect safety
             const hasSteelBoots = (
                 this.scene.registry.get("relics") as string[]
             ).includes("STEEL_BOOTS");
-            if (!hasSteelBoots) {
-                this.takeDamage(1);
-                this.bounce();
+
+            if (hasSteelBoots) {
+                console.log("Enemy stomped!");
                 enemy.takeDamage(999);
-                return true;
+                this.bounce();
+            } else {
+                this.takeDamage(1);
+                enemy.takeDamage(999);
+                this.bounce();
             }
-            console.log("Enemy stomped!");
-            enemy.takeDamage(999);
-            this.bounce();
 
             return true;
         } else if (!this.isInvulnerable) {
+            // NOT a stomp - this is a side collision
             console.log("Player ran into enemy!");
             const survived = this.takeDamage();
+
+            // Optional: might want to keep the enemy alive on side collisions
             enemy.takeDamage(999);
 
             if (survived) {

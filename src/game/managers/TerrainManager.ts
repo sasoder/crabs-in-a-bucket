@@ -364,7 +364,7 @@ export class TerrainManager {
 
         const currentBoulderChance = this.boulderSpawnChanceBase;
         const currentEnemyChance = this.enemySpawnChanceBase + depthFactor;
-        const currentSpikeChance = this.spikeSpawnChanceBase;
+        const currentSpikeChance = this.spikeSpawnChanceBase + depthFactor;
         const currentCoinChance = this.coinSpawnChanceBase;
 
         // Calculate enemy speed based on depth
@@ -551,7 +551,7 @@ export class TerrainManager {
                     const spike = new Spike(
                         this.scene,
                         spawnWorldX - TILE_SIZE / 2, // Adjust X because origin is center
-                        spikeSpawnY + 10 // Y is the top of the row + offset
+                        spikeSpawnY + 9 // Y is the top of the row + offset
                     );
 
                     if (spike) {

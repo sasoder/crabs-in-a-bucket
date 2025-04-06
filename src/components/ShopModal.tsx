@@ -25,7 +25,7 @@ interface ShopModalProps {
 
 // Basic wood texture simulation using gradients and color stops
 const woodFrameStyle =
-    "border-4 border-t-[#a0704f] border-l-[#a0704f] border-b-[#5a3d2b] border-r-[#5a3d2b] p-1"; // Simulate bevel
+    "border-8 border-t-[#b88a5f] border-l-[#b88a5f] border-b-[#4a2e1e] border-r-[#4a2e1e] p-1"; // Simulate thicker, beveled wood frame
 
 export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
     const [relics, setRelics] = useState<Relic[]>([]);
@@ -156,18 +156,22 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
             onOpenChange={(open: boolean) => !open && handleClose()}
         >
             <div className="texture">
+                {" "}
+                {/* Ensure texture wraps if needed */}
                 <AlertDialogContent
                     className={cn(
-                        "sm:max-w-[450px] p-0 border-none shadow-none border-radius", // Remove default padding and borders
-                        "bg-[#3a2416]" // Dark wood base for outer frame
+                        "sm:max-w-[475px] p-0 border-none shadow-none", // Removed border-radius, increased max-width slightly
+                        "bg-[#3a2416]" // Dark wood base for outer frame/background
                     )}
                 >
                     <div className={cn(woodFrameStyle)}>
                         {" "}
                         {/* Outer frame */}
-                        <div className={cn("p-4")}>
-                            {" "}
-                            {/* Inner panel */}
+                        <div
+                            className={cn(
+                                "p-6 bg-[#5a3d2b] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" // Inner panel slightly lighter, increased padding, subtle inner shadow
+                            )}
+                        >
                             <AlertDialogHeader className="mb-4">
                                 <AlertDialogTitle
                                     className={cn("text-4xl text-center")}

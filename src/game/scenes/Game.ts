@@ -170,7 +170,7 @@ export default class Game extends Phaser.Scene {
 
         this.registry.set("lives", 3);
         this.registry.set("coins", 0);
-        this.registry.set("relics", ["STEEL_BOOTS", "HEART_STONE"] as string[]);
+        this.registry.set("relics", [] as string[]);
         this.registry.set("consumables", [] as string[]);
         this.registry.set("totalCoinsCollected", 0);
         this.emitStatsUpdate(true);
@@ -268,7 +268,6 @@ export default class Game extends Phaser.Scene {
 
         // --- Player <-> Enemy ---
         this.physics.add.overlap(
-            // Overlap is fine for player/enemy interaction check
             this.player,
             this.enemiesGroup,
             this
@@ -709,6 +708,18 @@ export default class Game extends Phaser.Scene {
         ) {
             return;
         }
+
+        // Add debug logging to help diagnose the issue
+        const playerBody = playerGO.body as Phaser.Physics.Arcade.Body;
+        const enemyBody = enemyGO.body as Phaser.Physics.Arcade.Body;
+        console.log(`Collision detected:
+            playerY: ${playerBody.bottom}, enemyY: ${enemyBody.top}
+            playerVelY: ${playerBody.velocity.y}
+            isStomping: ${
+                playerBody.velocity.y > 0 &&
+                playerBody.bottom < enemyBody.top + 10
+            }`);
+
         // Delegate to player, which should check for stomp vs regular collision
         playerGO.handleEnemyCollision(enemyGO as Enemy);
     }

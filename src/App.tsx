@@ -99,8 +99,26 @@ function App() {
             >
                 {!gameStarted ? (
                     // Show Start Button if game hasn't started
-                    <div className="text-center">
-                        <h1 className="text-8xl mb-4 text-white">Just Dig</h1>
+                    <div className="text-center flex flex-col items-center">
+                        <div className="flex flex-row items-center">
+                            <img
+                                src="assets/entities/enemy.png"
+                                alt="Just Dig Logo"
+                                className="w-16 mx-auto mb-4"
+                                style={{
+                                    imageRendering: "pixelated",
+                                    filter: "drop-shadow(0 0 10px rgba(255, 170, 0, 0.3))",
+                                }}
+                            />
+                        </div>
+                        <h1
+                            className="text-8xl mb-4 text-white"
+                            style={{
+                                textShadow: "0 0 50px rgba(255, 170, 0, 0.5)",
+                            }}
+                        >
+                            Just Dig
+                        </h1>
                         <Button
                             variant="secondary"
                             onClick={startGame}
@@ -108,10 +126,11 @@ function App() {
                                 "text-xl border-2 border-t-amber-300 border-l-amber-300 border-b-amber-700 border-r-amber-700 bg-amber-500/80 hover:bg-amber-500 text-amber-950 disabled:opacity-60"
                             )}
                         >
-                            Dig
+                            Well don't mind if I do
                         </Button>
                         <p className="text-white/50 mt-8">
-                            Controls: arrow keys move/jump. Space to use items.
+                            Controls: arrow keys move/jump. Space bar to use
+                            items.
                         </p>
                     </div>
                 ) : (

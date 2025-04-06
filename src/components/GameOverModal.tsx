@@ -152,7 +152,7 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
                                             itemTypeOverride="relic"
                                             background={false}
                                             showPrice={false}
-                                            disabled={true}
+                                            disabled={false}
                                             size="lg"
                                             count={relicWithCount.count}
                                         />
