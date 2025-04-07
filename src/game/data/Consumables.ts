@@ -14,7 +14,7 @@ export const CONSUMABLES: { [key: string]: Consumable } = {
         id: "HEART_ROOT",
         name: "Heart",
         description: "A heart pulsating with life.",
-        effect: "Instantly gain 1 life",
+        effect: "Instantly gain +1 heart",
         spriteKey: "heart",
         cost: 15,
         isEntity: false,
