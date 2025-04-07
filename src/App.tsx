@@ -288,7 +288,7 @@ function App() {
                                     />
                                 </div>
                                 <p className="text-white mt-3 text-xl">
-                                    Move and dig
+                                    Move and jump
                                 </p>
                             </div>
                             <div className="flex flex-col items-center">
