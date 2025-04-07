@@ -1114,6 +1114,7 @@ export default class Game extends Phaser.Scene {
         this.colorMatrixFX = this.cameras.main.postFX.addColorMatrix();
         this.colorMatrixFX.brightness(1.25);
         this.colorMatrixFX.contrast(0.09);
+        this.colorMatrixFX.saturate(0.12);
 
         // Apply bloom effect
         this.bloomFX = this.cameras.main.postFX.addBloom(
