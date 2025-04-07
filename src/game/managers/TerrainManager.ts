@@ -40,7 +40,7 @@ export class TerrainManager {
     private enemySpawnChanceBase = 0.0035;
     private spikeSpawnChanceBase = 0.03;
     private coinSpawnChanceBase = 0.1;
-    private difficultyScaleFactor = 0.006;
+    private difficultyScaleFactor = 0.005;
     private specialTileChance = 0.05; // Chance for dirt/stone tile (per tile)
     // ---------------------------------------
 
