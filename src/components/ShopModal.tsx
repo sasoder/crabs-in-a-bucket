@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -36,6 +36,9 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         new Set()
     );
     const [inventoryIsFull, setInventoryIsFull] = useState(false);
+    const [canCloseShop, setCanCloseShop] = useState(false); // State for closability
+    const closeTimerRef = useRef<NodeJS.Timeout | null>(null); // Ref for timer ID (can be timeout or interval)
+    const [countdownSeconds, setCountdownSeconds] = useState(3); // State for countdown display
 
     // Effect to update items when shop opens or items are rerolled
     useEffect(() => {
@@ -69,7 +72,43 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         };
     }, []); // Run only once to set up listeners
 
-    // Effect to track successful purchases and disable buttons
+    useEffect(() => {
+        if (isOpen) {
+            setCountdownSeconds(3);
+            setCanCloseShop(false);
+            if (closeTimerRef.current) {
+                clearInterval(closeTimerRef.current);
+            }
+            closeTimerRef.current = setInterval(() => {
+                setCountdownSeconds((prevSeconds) => {
+                    const nextSeconds = prevSeconds - 1;
+                    if (nextSeconds <= 0) {
+                        if (closeTimerRef.current) {
+                            clearInterval(closeTimerRef.current);
+                            closeTimerRef.current = null;
+                        }
+                        setCanCloseShop(true);
+                        return 0;
+                    }
+                    return nextSeconds;
+                });
+            }, 1000);
+        } else {
+            if (closeTimerRef.current) {
+                clearInterval(closeTimerRef.current);
+                closeTimerRef.current = null;
+            }
+            setCanCloseShop(false);
+        }
+
+        return () => {
+            if (closeTimerRef.current) {
+                clearInterval(closeTimerRef.current);
+                closeTimerRef.current = null;
+            }
+        };
+    }, [isOpen]);
+
     useEffect(() => {
         const handleItemPurchased = (data: {
             itemId: string;
@@ -89,11 +128,20 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         setCanAffordReroll(playerCoins >= rerollCost);
     }, [playerCoins, rerollCost]);
 
-    // Add keyboard listener for Enter key
+    // Add keyboard listener for closing keys
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
-            if (isOpen && event.key === "Enter") {
-                handleClose();
+            // Only process if shop is open and closable
+            if (isOpen && canCloseShop) {
+                // Check for allowed keys: Enter, Space, Arrow Keys
+                if (
+                    event.key === "Enter" ||
+                    event.key === " " || // Space bar
+                    event.key.startsWith("Arrow") // ArrowLeft, ArrowRight, ArrowUp, ArrowDown
+                ) {
+                    event.preventDefault(); // Prevent default browser actions (like scrolling with space/arrows)
+                    handleClose();
+                }
             }
         };
 
@@ -101,9 +149,12 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
         return () => {
             window.removeEventListener("keydown", handleKeyPress);
         };
-    }, [isOpen]);
+    }, [isOpen, canCloseShop]); // Depend on isOpen and canCloseShop
 
     const handleClose = () => {
+        // Only close if allowed
+        if (!canCloseShop) return;
+
         EventBus.emit("close-shop"); // Tell Phaser the shop is closing
         onClose(); // Update React state in App.tsx
     };
@@ -306,11 +357,14 @@ export function ShopModal({ isOpen, onClose, playerCoins }: ShopModalProps) {
                                 <Button
                                     variant="secondary"
                                     onClick={handleClose}
+                                    disabled={!canCloseShop} // Disable button during delay
                                     className={cn(
                                         "text-xl border-2 border-t-orange-300 border-l-orange-300 border-b-orange-700 border-r-orange-700 bg-orange-500/80 hover:bg-orange-500 text-orange-950 disabled:opacity-60"
                                     )}
                                 >
-                                    Keep Digging
+                                    {canCloseShop
+                                        ? "Keep Digging"
+                                        : `Keep digging in ${countdownSeconds}s...`}
                                 </Button>
                             </AlertDialogFooter>
                         </div>
