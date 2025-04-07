@@ -19,4 +19,5 @@ bun run dev
 ![Screenshot 1](./screenshots/gif.gif)
 ![Screenshot 2](./screenshots/pic2.png)
 ![Screenshot 3](./screenshots/pic1.png)
+![Screenshot 4](./screenshots/pic3.png)
 
