@@ -116,7 +116,7 @@ function App() {
                             <img
                                 src="assets/entities/enemy.png"
                                 alt="Crabs in a Bucket Logo"
-                                className="w-16 mx-auto mb-4"
+                                className="w-20 mx-auto mb-4"
                                 style={{
                                     imageRendering: "pixelated",
                                     filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.2))",
