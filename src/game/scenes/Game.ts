@@ -1056,7 +1056,7 @@ export default class Game extends Phaser.Scene {
         if (heartStoneCount > 0) {
             // Create a new looping timer
             this.heartStoneTimer = this.time.addEvent({
-                delay: 60000, // 60 seconds
+                delay: 30000, // 30 seconds
                 callback: this.onHeartStoneTick,
                 callbackScope: this,
                 loop: true,

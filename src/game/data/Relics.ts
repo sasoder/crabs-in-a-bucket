@@ -39,7 +39,7 @@ export const RELICS: Record<string, Relic> = {
     HEART_STONE: {
         id: "HEART_STONE",
         name: "Heart Stone",
-        effect: "Gain +1 heart every 60 seconds",
+        effect: "Gain +1 heart every 30 seconds",
         description:
             "An ancient, small stone in the shape of a heart, imbued with the essence of life.",
         spriteKey: "heart_stone",
