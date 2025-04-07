@@ -376,6 +376,17 @@ function App() {
                 >
                     @sasoder
                 </a>
+
+                <div className="absolute bottom-4 left-4 text-sm text-white/70 hover:text-white transition-colors">
+                    Very much inspired by{" "}
+                    <a
+                        href="https://b-random9.itch.io/burrow"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        https://b-random9.itch.io/burrow
+                    </a>
+                </div>
             </div>
         </TooltipProvider>
     );
