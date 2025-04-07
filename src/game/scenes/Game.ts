@@ -47,6 +47,7 @@ export default class Game extends Phaser.Scene {
 
     // Post processing FX
     private bloomFX?: Phaser.FX.Bloom;
+    private colorMatrixFX?: Phaser.FX.ColorMatrix;
 
     // FX intensity control
     private bloomIntensity = 0.6; // Increased intensity for softer focus effect
@@ -843,9 +844,13 @@ export default class Game extends Phaser.Scene {
         // Clean up post-processing effects
         // Reset camera effects - check if bloomFX exists before removing
         if (this.bloomFX) {
-            // Use the generic remove method for Post FX pipelines
-            this.cameras.main.postFX.remove(this.bloomFX);
+            this.cameras.main.postFX.remove(this.bloomFX as any);
             this.bloomFX = undefined;
+        }
+
+        if (this.colorMatrixFX) {
+            this.cameras.main.postFX.remove(this.colorMatrixFX as any);
+            this.colorMatrixFX = undefined;
         }
     }
 
@@ -1096,9 +1101,19 @@ export default class Game extends Phaser.Scene {
     private applyPostProcessingEffects(): void {
         // Clear any existing effects first
         if (this.bloomFX) {
-            this.cameras.main.postFX.remove(this.bloomFX);
+            this.cameras.main.postFX.remove(this.bloomFX as any); // Cast to any
             this.bloomFX = undefined;
         }
+        if (this.colorMatrixFX) {
+            // Clear existing ColorMatrix too
+            this.cameras.main.postFX.remove(this.colorMatrixFX as any); // Cast to any
+            this.colorMatrixFX = undefined;
+        }
+
+        // Apply color matrix for brightness/contrast
+        this.colorMatrixFX = this.cameras.main.postFX.addColorMatrix();
+        this.colorMatrixFX.brightness(1.25);
+        this.colorMatrixFX.contrast(0.09);
 
         // Apply bloom effect
         this.bloomFX = this.cameras.main.postFX.addBloom(
