@@ -148,6 +148,7 @@ export class ShopManager {
                 notification = "Relic Purchased!";
                 this.scene.sound.play("buy");
                 this.applyRelicEffect(data.itemId); // Apply effect immediately
+                EventBus.emit("relics-changed");
             } else {
                 purchaseMessage = "Not enough coins!";
                 notification = "Not enough coins!";
