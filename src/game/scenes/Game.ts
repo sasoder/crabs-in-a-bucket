@@ -424,10 +424,14 @@ export default class Game extends Phaser.Scene {
         }
 
         // This must be a SIDE collision if we got here
-        if (boulder.isMovingDangerously()) {
-            // Boulder is moving significantly, damage the enemy
-            enemy.takeDamage(999); // Kill enemy
-            boulder.takeDamage(1); // Small damage to boulder
+        const MIN_LETHAL_SPEED_VS_ENEMY = 5;
+
+        if (boulderBody.velocity.length() > MIN_LETHAL_SPEED_VS_ENEMY) {
+            enemy.takeDamage(999);
+
+            if (boulder.isMovingDangerously()) {
+                boulder.takeDamage(1);
+            }
         } else {
             // Slow/stationary boulder, enemy just turns around
             enemy.changeDirection();
