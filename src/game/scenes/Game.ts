@@ -407,65 +407,29 @@ export default class Game extends Phaser.Scene {
         if (isVerticalCollision) {
             // Enemy is landing on or standing on boulder - NEVER damage the enemy
             if (
-                Math.abs(enemyBody.velocity.x) > 5 && // Only check if enemy is actually moving
-                enemyBody.velocity.y < 1 // And not currently jumping/falling significantly
+                Math.abs(enemyBody.velocity.x) > 20 &&
+                Math.abs(boulderBody.velocity.x) < 10
             ) {
-                // Check relative position and enemy direction
-                const isEnemyMovingRight = enemy.getMoveDirection() === 1;
-                const isEnemyMovingLeft = !isEnemyMovingRight;
-                const isEnemyLeftOfCenter =
-                    enemyBody.center.x < boulderBody.center.x;
-                const isEnemyRightOfCenter = !isEnemyLeftOfCenter;
-
-                // Change direction if moving towards the center from the edge
+                // Only change direction if moving toward boulder center
                 if (
-                    (isEnemyMovingRight && isEnemyLeftOfCenter) ||
-                    (isEnemyMovingLeft && isEnemyRightOfCenter)
+                    (enemyBody.center.x < boulderBody.center.x &&
+                        enemy.getMoveDirection() === 1) ||
+                    (enemyBody.center.x > boulderBody.center.x &&
+                        enemy.getMoveDirection() === -1)
                 ) {
-                    // Optional: add a small buffer so they don't flip constantly at the exact center
-                    if (
-                        Math.abs(enemyBody.center.x - boulderBody.center.x) >
-                        boulderBody.width * 0.1
-                    ) {
-                        enemy.changeDirection();
-                    }
+                    enemy.changeDirection();
                 }
             }
             return; // Exit early, no damage to either
         }
 
-        // --- Logic for Side Collision ---
-
-        // 1. Check if the boulder is inherently moving dangerously fast
+        // This must be a SIDE collision if we got here
         if (boulder.isMovingDangerously()) {
-            enemy.takeDamage(999); // Kill the enemy
-            boulder.takeDamage(1); // Boulder takes wear-and-tear
-            return; // Lethal collision
-        }
-
-        // 2. If not inherently dangerous, check if it's being actively pushed *into* the enemy
-        // The `touching` flags indicate what the boulder's body collided with in this step.
-        const isEnemyOnRight = enemyBody.center.x > boulderBody.center.x;
-        const isEnemyOnLeft = !isEnemyOnRight;
-
-        // Check if the boulder is touching something on the side OPPOSITE the enemy.
-        // This implies an external force is pushing it.
-        let beingPushedIntoEnemy = false;
-        if (isEnemyOnRight && boulderBody.touching.left) {
-            // Enemy is on the right, and boulder is touching something on its left (the pusher).
-            beingPushedIntoEnemy = true;
-        } else if (isEnemyOnLeft && boulderBody.touching.right) {
-            // Enemy is on the left, and boulder is touching something on its right (the pusher).
-            beingPushedIntoEnemy = true;
-        }
-
-        if (beingPushedIntoEnemy) {
-            // Even if slow, it's being actively pushed into the enemy. Treat as lethal.
-            enemy.takeDamage(999);
-            // The boulder being pushed arguably shouldn't take damage itself here,
-            // the pusher (other boulder/player) might take damage in its own collision checks.
+            // Boulder is moving significantly, damage the enemy
+            enemy.takeDamage(999); // Kill enemy
+            boulder.takeDamage(1); // Small damage to boulder
         } else {
-            // Boulder is slow/stationary AND not being actively pushed into the enemy.
+            // Slow/stationary boulder, enemy just turns around
             enemy.changeDirection();
         }
     }
