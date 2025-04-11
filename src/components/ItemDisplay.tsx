@@ -71,7 +71,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
     const cost = !isRelic(item) ? (item as Consumable).cost : undefined;
 
     return (
-        <Tooltip delayDuration={0}>
+        <Tooltip delayDuration={0} disableHoverableContent>
             <TooltipTrigger asChild>
                 <div
                     className={cn(
@@ -85,7 +85,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                             "p-1 h-auto w-auto border rounded relative", // Added relative positioning
                             onPurchase ? "cursor-pointer" : "cursor-default", // Cursor indicates clickability
                             sizeClasses[size], // Apply size class to button padding indirectly via content size
-                            disabled ? "opacity-50 pointer-events-none" : "", // Disable styling
+                            disabled ? "opacity-50" : "", // Disable styling
                             background
                                 ? ""
                                 : "bg-transparent hover:bg-transparent shadow-none border-none" // Apply background if enabled
@@ -118,7 +118,7 @@ const ItemDisplay: React.FC<ItemDisplayProps> = ({
                         {/* Display count if greater than 1 */}
                         {count && count > 1 && (
                             <span
-                                className="absolute bottom-0 right-0 text-xl px-1 py-0.5 text-white pointer-events-none"
+                                className="absolute bottom-0 right-0 text-xl px-1 py-0.5 text-white"
                                 style={{
                                     textShadow: "1px 1px 2px rgba(0,0,0,0.7)",
                                     fontWeight: "100",
