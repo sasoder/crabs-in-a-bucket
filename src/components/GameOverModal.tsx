@@ -73,6 +73,22 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
         onClose(); // Close the modal in React
     };
 
+    useEffect(() => {
+        const handleKeyPress = (event: KeyboardEvent) => {
+            if (isOpen) {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleRestart();
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyPress);
+        return () => {
+            window.removeEventListener("keydown", handleKeyPress);
+        };
+    }, [isOpen, handleRestart]);
+
     if (!data) {
         return null; // Don't render if no data yet
     }
