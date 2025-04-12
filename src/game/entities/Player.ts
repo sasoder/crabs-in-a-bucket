@@ -133,12 +133,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
         EventBus.emit("update-stats", { lives: newLives }); // Quick update
         EventBus.emit("player-damaged"); // For effects like flashing/sound
-        // Play hit sound
-        this.scene.sound.play("hit", { volume: 0.5 });
+
+        // Play hit sound only if not shutting down
+        const gameScene = this.scene as Game;
+        if (!gameScene.isShuttingDown) {
+            this.scene.sound.play("hit", { volume: 0.5 });
+        }
 
         if (newLives <= 0) {
             EventBus.emit("player-died");
-            this.scene.sound.play("die");
+
+            // Play death sound only if not shutting down
+            if (!gameScene.isShuttingDown) {
+                this.scene.sound.play("die");
+            }
+
             this.setActive(false); // Stop updates
             this.setVisible(false); // Hide
             this.body!.enable = false; // Disable physics
@@ -156,8 +165,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const newLives = currentLives + amount;
         this.scene.registry.set("lives", newLives);
 
-        // Optionally play a heal sound effect
-        this.scene.sound.play("heal", { volume: 1 });
+        // Play heal sound only if not shutting down
+        const gameScene = this.scene as Game;
+        if (!gameScene.isShuttingDown) {
+            this.scene.sound.play("heal", { volume: 1 });
+        }
 
         // Emit stats update to reflect the change in the UI
         EventBus.emit("stats-changed"); // Use stats-changed for consistency

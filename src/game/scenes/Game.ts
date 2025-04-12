@@ -52,6 +52,9 @@ export default class Game extends Phaser.Scene {
     // FX intensity control
     private bloomIntensity = 0.6; // Increased intensity for softer focus effect
 
+    // Flag to prevent sounds during shutdown
+    public isShuttingDown: boolean = false;
+
     constructor() {
         super("Game");
     }
@@ -774,6 +777,9 @@ export default class Game extends Phaser.Scene {
     }
 
     shutdown() {
+        // Set the flag to prevent sounds when destroying entities
+        this.isShuttingDown = true;
+
         // --- Clear Heart Stone Timer ---
         if (this.heartStoneTimer) {
             this.heartStoneTimer.remove();

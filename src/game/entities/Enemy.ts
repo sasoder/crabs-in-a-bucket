@@ -172,8 +172,12 @@ export class Enemy extends BaseGameEntity {
                 }
             }
 
-            // Play destruction sound if scene is still active
-            if (this.gameScene && this.gameScene.sound) {
+            // Play destruction sound if scene is still active AND not shutting down
+            if (
+                this.gameScene &&
+                this.gameScene.sound &&
+                !gameScene.isShuttingDown
+            ) {
                 this.gameScene.sound.play("hit", { volume: 0.5 });
             }
         }

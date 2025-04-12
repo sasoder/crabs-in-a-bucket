@@ -108,8 +108,10 @@ export class TNT extends Phaser.Physics.Arcade.Sprite {
     private explode(): void {
         if (!this.active) return;
 
-        // Play explosion sound
-        this.scene.sound.play("explosion");
+        // Play explosion sound only if not shutting down
+        if (!this.gameScene.isShuttingDown) {
+            this.scene.sound.play("explosion");
+        }
 
         // Simplified explosion effect
         if (this.gameScene.particleManager) {
