@@ -448,10 +448,13 @@ export default class Game extends Phaser.Scene {
 
         const player = playerGO as Player;
         const spike = spikeGO as Spike;
+        const playerBody = player.body as Phaser.Physics.Arcade.Body;
+        const spikeBody = spike.body as Phaser.Physics.Arcade.StaticBody;
 
-        // Damage player immediately on contact, pass source string
-        player.takeDamage(spike.damageAmount, "spike");
-        spike.takeDamage(1);
+        if (playerBody.position.y < spikeBody.position.y - 10) {
+            player.takeDamage(spike.damageAmount, "spike");
+            spike.takeDamage(1); // Spike takes damage too
+        }
     }
 
     private handleEnemySpikeCollision(
