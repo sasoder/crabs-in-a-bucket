@@ -178,7 +178,7 @@ export class Enemy extends BaseGameEntity {
                 this.gameScene.sound &&
                 !gameScene.isShuttingDown
             ) {
-                this.gameScene.sound.play("hit", { volume: 0.5 });
+                this.gameScene.sound.play("hit", { volume: 0.3 });
             }
         }
 

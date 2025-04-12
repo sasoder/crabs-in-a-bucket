@@ -68,7 +68,7 @@ export class Spike extends Phaser.Physics.Arcade.Sprite {
 
         // Play destruction sound only if not shutting down
         if (!this.gameScene.isShuttingDown) {
-            this.gameScene.sound.play("hit", { volume: 0.5 }); // Or a specific spike break sound
+            this.gameScene.sound.play("hit", { volume: 0.3 });
         }
 
         // Use delayed call for proper cleanup after effects

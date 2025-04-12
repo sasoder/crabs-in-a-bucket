@@ -62,7 +62,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }, 1);
 
         this.setVelocityY(this.jumpVelocity * jumpMultiplier);
-        this.scene.sound.play("jump", { volume: 0.5 });
+        this.scene.sound.play("jump", { volume: 0.3 });
 
         // basic scaling animation based on scaling factor using phaser tween. should be a pulse effect and not repeat
         this.scene.tweens.add({
@@ -137,7 +137,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Play hit sound only if not shutting down
         const gameScene = this.scene as Game;
         if (!gameScene.isShuttingDown) {
-            this.scene.sound.play("hit", { volume: 0.5 });
+            this.scene.sound.play("hit", { volume: 0.3 });
         }
 
         if (newLives <= 0) {

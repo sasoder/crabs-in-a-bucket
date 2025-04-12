@@ -374,7 +374,7 @@ export class Boulder extends Phaser.Physics.Arcade.Image {
 
         // Only play sound if not shutting down
         if (!this.gameScene.isShuttingDown) {
-            this.scene.sound.play("hit", { volume: 0.5 });
+            this.scene.sound.play("hit", { volume: 0.3 });
         }
 
         if (this.gameScene.particleManager) {
