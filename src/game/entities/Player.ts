@@ -145,7 +145,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
             // Play death sound only if not shutting down
             if (!gameScene.isShuttingDown) {
-                this.scene.sound.play("die");
+                this.scene.sound.play("die", { volume: 0.2 });
             }
 
             this.setActive(false); // Stop updates
@@ -168,7 +168,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Play heal sound only if not shutting down
         const gameScene = this.scene as Game;
         if (!gameScene.isShuttingDown) {
-            this.scene.sound.play("heal", { volume: 1 });
+            this.scene.sound.play("heal", { volume: 0.5 });
         }
 
         // Emit stats update to reflect the change in the UI
