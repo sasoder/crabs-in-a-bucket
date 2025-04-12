@@ -80,9 +80,12 @@ export function GameOverModal({ isOpen, onClose, data }: GameOverModalProps) {
     return (
         <AlertDialog
             open={isOpen}
-            onOpenChange={(open: boolean) => !open && onClose()} // Allow closing by clicking outside (optional)
+            onOpenChange={(open: boolean) => !open && onClose()}
         >
             <AlertDialogContent
+                onEscapeKeyDown={(event) => {
+                    event.preventDefault();
+                }}
                 className={cn(
                     "sm:max-w-[475px] p-0 border-none shadow-none", // Match ShopModal size and base style
                     "bg-[#3a2416]", // Dark wood base like ShopModal,
